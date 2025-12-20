@@ -1,7 +1,7 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
 
-import { SearchAPI } from "../lib/getAxios";
+import { SearchAPI } from "../lib/getAxios.js";
 
 interface SearchFileInput {
   content_or_filename: string;
@@ -33,7 +33,7 @@ class SearchFileTool extends MCPTool<SearchFileInput> {
         return "No matches found in ZimaOS";
       }
 
-      return res.data.data?.hits?.map((hit) => `${hit._source?.dir}/${hit._source?.name}`).join('\n');
+      return res.data.data?.hits?.map((hit: any) => `${hit._source?.dir}/${hit._source?.name}`).join('\n');
     } catch (error) {
       return `Error: ${error}`;
     }

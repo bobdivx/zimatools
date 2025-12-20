@@ -1,4 +1,4 @@
-import { FileAPI } from "../lib/getAxios";
+import { FileAPI } from "../lib/getAxios.js";
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
 
@@ -22,9 +22,9 @@ class ListDirectoryTool extends MCPTool<ListDirectoryInput> {
 
   async execute(input: ListDirectoryInput) {
     try {
-      const res = await FileAPI().getFiles(input.dir_path, 0, 100000, 'true', 'name', 'asc')
+      const res = await FileAPI().getFiles(input.dir_path);
       return res.data.content
-        ?.map((file) => `${file?.is_dir ? '[DIR]' : '[FILE]'} ${file?.name}`)
+        ?.map((file: any) => `${file?.is_dir ? '[DIR]' : '[FILE]'} ${file?.name}`)
         .join('\n');
     } catch (error) {
       return `get file list failed, please check the dir path, error info: ${error}`;

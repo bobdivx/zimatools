@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { StorageAPI } from "../lib/getAxios";
+import { StorageAPI } from "../lib/getAxios.js";
 
 interface ListAllowedDirectoriesInput {
   message: string;
@@ -23,7 +23,7 @@ class ListAllowedDirectoriesTool extends MCPTool<ListAllowedDirectoriesInput> {
     try {
       const storageList = await StorageAPI().getAllStorages()
       return `Allowed directories:\n${storageList.data?.map(
-        (storage) => {
+        (storage: any) => {
         return storage.path
       }
     ).join("\n")}`

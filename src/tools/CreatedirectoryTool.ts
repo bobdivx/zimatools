@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { FolderAPI } from "../lib/getAxios";
+import { FolderAPI } from "../lib/getAxios.js";
 
 interface CreateDirectoryInput {
   path: string;

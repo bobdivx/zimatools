@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { FileAPI } from "../lib/getAxios";
+import { FileAPI } from "../lib/getAxios.js";
 
 interface GetfilecontentInput {
   file_path: string;
