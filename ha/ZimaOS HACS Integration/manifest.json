@@ -1,0 +1,14 @@
+{
+  "domain": "zimaos",
+  "name": "ZimaOS Monitor",
+  "version": "2.0.0",
+  "documentation": "https://github.com/chicohaager/zimaos-hass-integration",
+  "issue_tracker": "https://github.com/chicohaager/zimaos-hass-integration/issues",
+  "dependencies": [],
+  "codeowners": ["@chicohaager"],
+  "requirements": ["paramiko>=2.7.2"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "integration_type": "hub",
+  "icon": "icon.png"
+}

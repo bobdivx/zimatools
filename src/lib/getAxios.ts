@@ -56,16 +56,16 @@ export const SearchAPI = () => {
 export const DockerAPI = () => {
   const instance = axios.create(getBaseConfig());
   return {
-    listContainers: () => instance.get(`/v1/containers`),
-    getContainerInfo: (containerId: string) => instance.get(`/v1/containers/${containerId}`),
-    startContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/start`),
-    stopContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/stop`),
-    restartContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/restart`),
+    listContainers: () => instance.get(`/v2/apps`),
+    getContainerInfo: (containerId: string) => instance.get(`/v2/apps/${containerId}`),
+    startContainer: (containerId: string) => instance.post(`/v2/apps/${containerId}/start`),
+    stopContainer: (containerId: string) => instance.post(`/v2/apps/${containerId}/stop`),
+    restartContainer: (containerId: string) => instance.post(`/v2/apps/${containerId}/restart`),
     getContainerLogs: (containerId: string, options?: { tail?: number; follow?: boolean }) => {
       const params = new URLSearchParams();
       if (options?.tail) params.append('tail', options.tail.toString());
       if (options?.follow) params.append('follow', 'true');
-      return instance.get(`/v1/containers/${containerId}/logs?${params.toString()}`);
+      return instance.get(`/v2/apps/${containerId}/logs?${params.toString()}`);
     },
   };
 };

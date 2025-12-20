@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface GetDockerContainerInfoInput {
   container_id: string;
@@ -19,8 +19,8 @@ class GetDockerContainerInfoTool extends MCPTool<GetDockerContainerInfoInput> {
 
   async execute(input: GetDockerContainerInfoInput) {
     try {
-      const res = await DockerAPI().getContainerInfo(input.container_id);
-      return JSON.stringify(res.data, null, 2);
+      const info = await DockerSSH.getContainerInfo(input.container_id);
+      return JSON.stringify(info, null, 2);
     } catch (error: any) {
       return `Failed to get container info: ${error.message || error}`;
     }

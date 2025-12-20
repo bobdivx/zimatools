@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface ListDockerContainersInput {
   message: string;
@@ -19,17 +19,19 @@ class ListDockerContainersTool extends MCPTool<ListDockerContainersInput> {
 
   async execute(input: ListDockerContainersInput) {
     try {
-      const res = await DockerAPI().listContainers();
-      if (!res.data || !res.data.length) {
+      const containers = await DockerSSH.listContainers();
+      if (!containers || containers.length === 0) {
         return "No Docker containers found on ZimaOS";
       }
       
-      return res.data.map((container: any) => {
-        return `Container ID: ${container.id || container.Id || 'N/A'}\n` +
-               `Name: ${container.name || container.Names?.[0] || 'N/A'}\n` +
-               `Image: ${container.image || container.Image || 'N/A'}\n` +
-               `Status: ${container.status || container.Status || 'N/A'}\n` +
-               `State: ${container.state || container.State || 'N/A'}\n` +
+      return containers.map((container: any) => {
+        return `Container ID: ${container.id || 'N/A'}\n` +
+               `Name: ${container.name || 'N/A'}\n` +
+               `Image: ${container.image || 'N/A'}\n` +
+               `Status: ${container.status || 'N/A'}\n` +
+               `State: ${container.state || 'N/A'}\n` +
+               `Created: ${container.created || 'N/A'}\n` +
+               `Ports: ${container.ports || 'N/A'}\n` +
                `---`;
       }).join('\n');
     } catch (error: any) {

@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface StopDockerContainerInput {
   container_id: string;
@@ -19,7 +19,7 @@ class StopDockerContainerTool extends MCPTool<StopDockerContainerInput> {
 
   async execute(input: StopDockerContainerInput) {
     try {
-      await DockerAPI().stopContainer(input.container_id);
+      await DockerSSH.stopContainer(input.container_id);
       return `Container ${input.container_id} stopped successfully`;
     } catch (error: any) {
       return `Failed to stop container ${input.container_id}: ${error.message || error}`;

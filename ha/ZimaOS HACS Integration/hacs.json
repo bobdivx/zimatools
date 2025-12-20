@@ -1,0 +1,9 @@
+{
+  "name": "ZimaOS Monitor",
+  "content_in_root": false,
+  "render_readme": true,
+  "domains": ["sensor"],
+  "iot_class": "Local Polling",
+  "homeassistant": "2023.1.0",
+  "country": ["US", "DE", "GB", "FR", "IT", "ES", "NL", "SE", "NO", "DK", "FI", "PL", "CZ", "AT", "CH", "BE", "PT", "GR", "RO", "HU", "BG", "HR", "SK", "SI", "LT", "LV", "EE", "IE", "LU", "MT", "CY"]
+}

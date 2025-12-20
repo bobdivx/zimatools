@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to ZimaOS",
+        "description": "Enter your ZimaOS connection details",
+        "data": {
+          "host": "Host IP Address",
+          "username": "SSH Username",
+          "password": "SSH Password",
+          "ssh_port": "SSH Port"
+        },
+        "data_description": {
+          "host": "IP address of your ZimaOS system",
+          "username": "SSH username (usually 'zimaos')",
+          "password": "SSH password for the user",
+          "ssh_port": "SSH port (default: 22)"
+        }
+      }
+    },
+    "error": {
+      "authentication_failed": "Invalid authentication credentials",
+      "connection_failed": "Failed to connect to ZimaOS",
+      "timeout": "Connection timeout",
+      "unknown_error": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "cannot_connect": "Failed to connect to device"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ZimaOS Options",
+        "description": "Configure ZimaOS Monitor settings",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  }
+}

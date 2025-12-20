@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface StartDockerContainerInput {
   container_id: string;
@@ -19,7 +19,7 @@ class StartDockerContainerTool extends MCPTool<StartDockerContainerInput> {
 
   async execute(input: StartDockerContainerInput) {
     try {
-      await DockerAPI().startContainer(input.container_id);
+      await DockerSSH.startContainer(input.container_id);
       return `Container ${input.container_id} started successfully`;
     } catch (error: any) {
       return `Failed to start container ${input.container_id}: ${error.message || error}`;

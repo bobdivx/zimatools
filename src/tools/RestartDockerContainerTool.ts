@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface RestartDockerContainerInput {
   container_id: string;
@@ -19,7 +19,7 @@ class RestartDockerContainerTool extends MCPTool<RestartDockerContainerInput> {
 
   async execute(input: RestartDockerContainerInput) {
     try {
-      await DockerAPI().restartContainer(input.container_id);
+      await DockerSSH.restartContainer(input.container_id);
       return `Container ${input.container_id} restarted successfully`;
     } catch (error: any) {
       return `Failed to restart container ${input.container_id}: ${error.message || error}`;

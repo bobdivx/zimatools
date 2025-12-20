@@ -1,6 +1,6 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
-import { DockerAPI } from "../lib/getAxios.js";
+import { DockerSSH } from "../lib/dockerSSH.js";
 
 interface GetDockerContainerLogsInput {
   container_id: string;
@@ -24,21 +24,11 @@ class GetDockerContainerLogsTool extends MCPTool<GetDockerContainerLogsInput> {
 
   async execute(input: GetDockerContainerLogsInput) {
     try {
-      const res = await DockerAPI().getContainerLogs(input.container_id, {
+      const logs = await DockerSSH.getContainerLogs(input.container_id, {
         tail: input.tail,
         follow: false,
       });
-      
-      // The logs might be in different formats depending on the API
-      if (typeof res.data === 'string') {
-        return res.data;
-      } else if (Array.isArray(res.data)) {
-        return res.data.join('\n');
-      } else if (res.data.logs) {
-        return res.data.logs;
-      } else {
-        return JSON.stringify(res.data, null, 2);
-      }
+      return logs;
     } catch (error: any) {
       return `Failed to get container logs: ${error.message || error}`;
     }

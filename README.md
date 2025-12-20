@@ -88,8 +88,17 @@ Add the following to your Cursor MCP configuration file (typically located at `~
 
 ### Environment Variables
 
+**Required for file operations:**
 - `ZIMAOS_API_BASE` (required): The base URL of your ZimaOS API (e.g., `http://zimacube.local` or `http://192.168.1.100`)
 - `ZIMAOS_API_TOKEN` (required): Your ZimaOS API token (obtain from your ZimaOS administration panel)
+
+**Required for Docker management (SSH):**
+- `ZIMAOS_SSH_PASSWORD` (required): SSH password for your ZimaOS system
+- `ZIMAOS_SSH_HOST` (optional): SSH hostname. If not provided, will be auto-detected from `ZIMAOS_API_BASE`
+- `ZIMAOS_SSH_USERNAME` (optional): SSH username, defaults to `zimaos`
+- `ZIMAOS_SSH_PORT` (optional): SSH port, defaults to `22`
+
+**Note:** If `ZIMAOS_SSH_HOST` is not set, it will be automatically extracted from `ZIMAOS_API_BASE` (e.g., `http://zimacube.local:90` → `zimacube.local`)
 
 ## Getting Your ZimaOS API Token
 
