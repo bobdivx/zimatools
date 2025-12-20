@@ -52,3 +52,20 @@ export const SearchAPI = () => {
     searchFile: (data: { keyword: string; dir: string }) => instance.post(`/v1/search`, data),
   };
 };
+
+export const DockerAPI = () => {
+  const instance = axios.create(getBaseConfig());
+  return {
+    listContainers: () => instance.get(`/v1/containers`),
+    getContainerInfo: (containerId: string) => instance.get(`/v1/containers/${containerId}`),
+    startContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/start`),
+    stopContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/stop`),
+    restartContainer: (containerId: string) => instance.post(`/v1/containers/${containerId}/restart`),
+    getContainerLogs: (containerId: string, options?: { tail?: number; follow?: boolean }) => {
+      const params = new URLSearchParams();
+      if (options?.tail) params.append('tail', options.tail.toString());
+      if (options?.follow) params.append('follow', 'true');
+      return instance.get(`/v1/containers/${containerId}/logs?${params.toString()}`);
+    },
+  };
+};

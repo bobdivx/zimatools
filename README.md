@@ -4,6 +4,7 @@ A Model Context Protocol (MCP) server for interacting with your ZimaOS file syst
 
 ## Features
 
+### File Management
 - 📁 **List directories** - Browse files and folders on your ZimaOS
 - 📄 **Read files** - Read file contents from ZimaOS
 - ✏️ **Write/Edit files** - Create and modify files on ZimaOS
@@ -11,6 +12,14 @@ A Model Context Protocol (MCP) server for interacting with your ZimaOS file syst
 - 📊 **Get file info** - Retrieve detailed metadata about files and directories
 - 📂 **Create directories** - Create new directory structures
 - 🗂️ **List allowed directories** - View accessible storage locations
+
+### Docker Container Management
+- 🐳 **List Docker containers** - View all Docker containers deployed on ZimaOS
+- ▶️ **Start containers** - Start stopped Docker containers
+- ⏹️ **Stop containers** - Stop running Docker containers
+- 🔄 **Restart containers** - Restart Docker containers
+- 📋 **View container logs** - Get logs from Docker containers
+- ℹ️ **Get container info** - Retrieve detailed information about containers
 
 ## Prerequisites
 
@@ -24,11 +33,10 @@ A Model Context Protocol (MCP) server for interacting with your ZimaOS file syst
 
 1. Clone or download this repository:
    ```bash
-   git clone https://github.com/YOUR_GITHUB_USERNAME/zimaos-cursor-mcp.git
+   git clone https://github.com/bobdivx/zimaos-cursor-mcp.git
    cd zimaos-cursor-mcp
    ```
    
-   **Note:** Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username.
 
 2. Install dependencies:
    ```bash
@@ -101,9 +109,18 @@ Once configured, the MCP server will be automatically available in Cursor. You c
 - Get information about files and directories
 
 Example queries you can make to Cursor:
+
+**File Operations:**
 - "List all files in /Documents on my ZimaOS"
 - "Read the contents of /path/to/file.txt from ZimaOS"
 - "Search for files containing 'project' on my ZimaOS"
+
+**Docker Operations:**
+- "List all Docker containers on my ZimaOS"
+- "Start the Docker container named 'myapp'"
+- "Show me the logs from container 'nginx'"
+- "Get information about container 'database'"
+- "Restart the container with ID abc123"
 
 ## Development
 
@@ -128,8 +145,15 @@ zimaos-cursor-mcp/
 ├── src/
 │   ├── index.ts              # Main server entry point
 │   ├── lib/
-│   │   └── getAxios.ts       # API client configuration
-│   ├── tools/                # MCP tools (file operations)
+│   │   └── getAxios.ts       # API client configuration (File, Docker, Storage APIs)
+│   ├── tools/                # MCP tools (file and Docker operations)
+│   │   ├── *.ts              # File management tools
+│   │   ├── ListDockerContainersTool.ts
+│   │   ├── StartDockerContainerTool.ts
+│   │   ├── StopDockerContainerTool.ts
+│   │   ├── RestartDockerContainerTool.ts
+│   │   ├── GetDockerContainerLogsTool.ts
+│   │   └── GetDockerContainerInfoTool.ts
 │   ├── resources/            # MCP resources
 │   └── prompts/              # MCP prompts
 ├── dist/                     # Compiled JavaScript (generated)
@@ -182,7 +206,7 @@ If you want to publish this repository:
 
 3. Add your GitHub repository as remote:
    ```bash
-   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/zimaos-cursor-mcp.git
+   git remote add origin https://github.com/bobdivx/zimaos-cursor-mcp.git
    git branch -M main
    git push -u origin main
    ```
@@ -208,4 +232,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-For issues and questions, please open an issue on the GitHub repository: https://github.com/YOUR_GITHUB_USERNAME/zimaos-cursor-mcp/issues
+For issues and questions, please open an issue on the GitHub repository: https://github.com/bobdivx/zimaos-cursor-mcp/issues
