@@ -21,13 +21,22 @@ const getBaseConfig = () => {
   };
 };
 
+/**
+ * FileAPI - Interface pour les opérations sur les fichiers ZimaOS
+ * Interfaces mises à jour selon les spécifications ZimaOS v1
+ */
 export const FileAPI = () => {
   const instance = axios.create(getBaseConfig());
   return {
+    // GET /v1/files?path=${path} - Liste les fichiers dans un répertoire
     getFiles: (path: string) => instance.get(`/v1/files?path=${path}`),
+    // POST /v1/files/stats - Récupère les statistiques de fichiers/dossiers
     getFileOrFolderStats: (paths: string[]) => instance.post(`/v1/files/stats`, { paths }),
+    // GET /v1/files/download?path=${path} - Télécharge le contenu d'un fichier
     getFileDownload: (path: string) => instance.get(`/v1/files/download?path=${path}`),
+    // PUT /v1/files - Met à jour le contenu d'un fichier
     putFile: (data: { path: string; content: string }) => instance.put(`/v1/files`, data),
+    // POST /v1/files - Crée un nouveau fichier
     postCreateFile: (data: { path: string }) => instance.post(`/v1/files`, data),
   };
 };

@@ -22,7 +22,7 @@ const __dirname = dirname(__filename);
 
 const server = new MCPServer({
   name: "zimaos-mcp",
-  version: "0.0.1",
+  version: "0.0.2",
   basePath: __dirname, // Le framework cherchera les outils dans basePath/tools (donc dist/tools)
 });
 
