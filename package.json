@@ -1,0 +1,18 @@
+{
+  "name": "zimatools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZimaOS-native MCP server, web UI et arbitre GPU",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "dev:mcp": "pnpm --filter @zimatools/mcp dev",
+    "dev:web": "pnpm --filter @zimatools/web dev",
+    "start:mcp": "pnpm --filter @zimatools/mcp start",
+    "start:web": "pnpm --filter @zimatools/web start"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.14.0"
+}
