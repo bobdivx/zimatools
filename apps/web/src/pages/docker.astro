@@ -1,10 +1,12 @@
----
-import Layout from "../layouts/Layout.astro";
-import DockerList from "../components/DockerList";
----
-
-<Layout title="ZimaTools — Docker">
-  <h1 class="text-3xl font-bold mb-4">Conteneurs Docker</h1>
-  <p class="opacity-70 mb-6">Placeholder: liste via l'API REST MCP (SSH docker ou stub si indisponible).</p>
-  <DockerList client:load />
-</Layout>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content="0;url=/apps" />
+    <link rel="canonical" href="/apps" />
+    <title>Redirection Apps</title>
+    <script is:inline>location.replace("/apps");</script>
+  </head>
+  <body>
+    <a href="/apps">Applications ZimaOS</a>
+  </body>
+</html>

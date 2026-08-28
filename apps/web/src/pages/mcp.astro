@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import McpPanel from "../components/McpPanel";
+---
+
+<Layout title="ZimaTools — MCP">
+  <div class="mb-6">
+    <div class="zima-kicker">Protocole</div>
+    <h1 class="text-3xl font-bold mt-1">Serveur MCP</h1>
+    <p class="opacity-60 mt-2 max-w-2xl">
+      Endpoint HTTP stream, sante live, et catalogue des outils fichiers / Docker / GPU pour Cursor et DevForge.
+    </p>
+  </div>
+  <McpPanel client:load />
+</Layout>

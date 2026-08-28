@@ -7,11 +7,12 @@
     "dev": "astro dev --host 0.0.0.0 --port 4321",
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0 --port 8080",
-    "start": "astro preview --host 0.0.0.0 --port 8080"
+    "start": "node serve-dist.mjs"
   },
   "dependencies": {
     "@astrojs/preact": "^4.1.1",
     "astro": "^5.13.5",
+    "chart.js": "^4.5.0",
     "preact": "^10.27.2"
   },
   "devDependencies": {

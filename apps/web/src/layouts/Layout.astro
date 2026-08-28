@@ -9,17 +9,19 @@ interface Props {
 const { title = "ZimaTools" } = Astro.props;
 ---
 
-<html lang="fr" data-theme="dark">
+<html lang="fr" data-theme="zima">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
-  <body class="min-h-screen bg-base-200">
-    <Nav pathname={Astro.url.pathname} />
-    <main class="container mx-auto px-4 py-6">
-      <slot />
-    </main>
+  <body>
+    <div class="zima-shell">
+      <Nav pathname={Astro.url.pathname} />
+      <main class="zima-main">
+        <slot />
+      </main>
+    </div>
   </body>
 </html>

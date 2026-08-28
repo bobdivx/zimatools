@@ -1,4 +1,316 @@
 @import "tailwindcss";
+
 @plugin "daisyui" {
-  themes: dark --default, light;
+  themes: zima --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "zima";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #1c1f26;
+  --color-base-200: #16181d;
+  --color-base-300: #101216;
+  --color-base-content: #e8eaed;
+  --color-primary: #3b82f6;
+  --color-primary-content: #ffffff;
+  --color-secondary: #4da3ff;
+  --color-secondary-content: #071018;
+  --color-accent: #4da3ff;
+  --color-accent-content: #071018;
+  --color-neutral: #2a2e38;
+  --color-neutral-content: #cfd6e0;
+  --color-info: #4da3ff;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --radius-box: 1.125rem;
+  --radius-selector: 0.85rem;
+  --radius-field: 0.75rem;
+}
+
+:root {
+  --zima-canvas: #101216;
+  --zima-panel: #16181d;
+  --zima-card: #1c1f26;
+  --zima-border: rgba(255, 255, 255, 0.07);
+  --zima-accent: #3b82f6;
+  --zima-accent-2: #4da3ff;
+  --zima-muted: #9aa3b2;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--zima-canvas);
+  color: #e8eaed;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.zima-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.zima-sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--zima-panel);
+  border-right: 1px solid var(--zima-border);
+  padding: 22px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.zima-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 12px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-size: 1.05rem;
+}
+
+.zima-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #4da3ff, #2563eb);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.28);
+}
+
+.zima-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zima-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #c5ccd6;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 550;
+}
+
+.zima-nav a:hover {
+  background: rgba(77, 163, 255, 0.08);
+  color: #fff;
+}
+
+.zima-nav a.active {
+  background: rgba(59, 130, 246, 0.16);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(77, 163, 255, 0.25);
+}
+
+.zima-nav svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.9;
+}
+
+.zima-sidebar-foot {
+  margin-top: auto;
+  padding: 10px 8px;
+  color: var(--zima-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.zima-main {
+  flex: 1;
+  padding: 28px 32px 48px;
+  max-width: 1280px;
+}
+
+.zima-card {
+  background: var(--zima-card);
+  border: 1px solid var(--zima-border);
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+}
+
+.zima-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--zima-muted);
+  font-weight: 650;
+}
+
+.zima-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  border: 1px solid transparent;
+}
+
+.zima-pill-run {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.zima-pill-stop {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.zima-pill-gpu {
+  background: rgba(59, 130, 246, 0.16);
+  color: #93c5fd;
+  border-color: rgba(77, 163, 255, 0.28);
+}
+
+.zima-pill-hold {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 14px;
+}
+
+.app-tile {
+  background: var(--zima-card);
+  border: 1px solid var(--zima-border);
+  border-radius: 18px;
+  padding: 16px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 168px;
+  text-align: left;
+  color: inherit;
+  cursor: default;
+}
+
+.app-tile.selectable {
+  cursor: pointer;
+}
+
+.app-tile.selectable:hover,
+.app-tile.holder {
+  border-color: rgba(77, 163, 255, 0.55);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+.app-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #262b36;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #dbeafe;
+}
+
+.app-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vram-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #262b36;
+  overflow: hidden;
+}
+
+.vram-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #4da3ff);
+}
+
+.tool-row {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--zima-border);
+}
+
+.tool-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.tool-row.disabled {
+  opacity: 0.5;
+}
+
+.code-block {
+  background: #12141a;
+  border: 1px solid var(--zima-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: #d5deea;
+}
+
+.status-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 960px) {
+  .zima-shell {
+    flex-direction: column;
+  }
+  .zima-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 14px;
+  }
+  .zima-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .zima-sidebar-foot {
+    display: none;
+  }
+  .status-row {
+    grid-template-columns: 1fr;
+  }
+  .zima-main {
+    padding: 20px 16px 40px;
+  }
 }

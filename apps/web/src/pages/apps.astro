@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import AppsGrid from "../components/AppsGrid";
+---
+
+<Layout title="ZimaTools — Apps">
+  <div class="mb-6">
+    <div class="zima-kicker">ZimaOS</div>
+    <h1 class="text-3xl font-bold mt-1">Applications</h1>
+    <p class="opacity-60 mt-2 max-w-2xl">
+      Conteneurs Docker / apps CasaOS. Consultation seule : pas de boutons stop (ollama et popcornn-server restent intacts).
+    </p>
+  </div>
+  <AppsGrid client:load />
+</Layout>
