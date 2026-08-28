@@ -1,0 +1,48 @@
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mcp
+    container_name: zimatools-mcp
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+      - "8766:8766"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HOST: "0.0.0.0"
+      MCP_PORT: "8765"
+      MCP_ENDPOINT: /mcp
+      MCP_CORS_ORIGIN: "*"
+      API_PORT: "8766"
+      API_CORS_ORIGIN: "*"
+      ZIMAOS_API_BASE: ${ZIMAOS_API_BASE:-http://127.0.0.1}
+      ZIMAOS_API_TOKEN: ${ZIMAOS_API_TOKEN:-}
+      ZIMAOS_SSH_PASSWORD: ${ZIMAOS_SSH_PASSWORD:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8766/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: zimatools-web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+    depends_on:
+      - mcp
+
+# GPU NVIDIA: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
