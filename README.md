@@ -1,244 +1,187 @@
-# ZimaOS MCP Server
+# ZimaTools
 
-A Model Context Protocol (MCP) server for interacting with your ZimaOS file system and storage. This server allows you to read, write, search, and manage files on your ZimaOS device through Cursor or other MCP-compatible clients.
+Application native **ZimaOS** : serveur MCP (HTTP), interface web et **arbitre GPU** pour une VRAM exclusive.
 
-## Features
+Popcorn a priorite sur Ollama et les agents. Un seul lease GPU a la fois.
 
-### File Management
-- 📁 **List directories** - Browse files and folders on your ZimaOS
-- 📄 **Read files** - Read file contents from ZimaOS
-- ✏️ **Write/Edit files** - Create and modify files on ZimaOS
-- 🔍 **Search files** - Search for files by name or content
-- 📊 **Get file info** - Retrieve detailed metadata about files and directories
-- 📂 **Create directories** - Create new directory structures
-- 🗂️ **List allowed directories** - View accessible storage locations
+Repo : https://github.com/bobdivx/zimatools  
+Origine : [zimaos-cursor-mcp](https://github.com/bobdivx/zimaos-cursor-mcp) v0.0.2 (historique conserve).
 
-### Docker Container Management
-- 🐳 **List Docker containers** - View all Docker containers deployed on ZimaOS
-- ▶️ **Start containers** - Start stopped Docker containers
-- ⏹️ **Stop containers** - Stop running Docker containers
-- 🔄 **Restart containers** - Restart Docker containers
-- 📋 **View container logs** - Get logs from Docker containers
-- ℹ️ **Get container info** - Retrieve detailed information about containers
+## Stack
 
-## Prerequisites
+- Monorepo **pnpm workspaces**
+- `apps/mcp` — TypeScript, [mcp-framework](https://www.mcp-framework.com/) `0.2.x`, transport **HTTP Stream** (`/mcp`) + stdio optionnel
+- Pont REST **Hono** (`/api/*`) pour l'UI
+- `apps/web` — **Astro + Preact + Tailwind CSS + DaisyUI**
+- `docker-compose.yml` pret pour ZimaOS (docker.sock, NVIDIA optionnel)
 
-- Node.js 18+ installed
-- Access to a ZimaOS device with API enabled
-- ZimaOS API token (obtain from your ZimaOS administration panel)
+## Architecture
 
-## Installation
+```
+zimatools/
+  apps/mcp/     serveur MCP + REST + arbitre GPU
+  apps/web/     UI Astro/Preact/DaisyUI
+  docker/       Dockerfiles
+  docker-compose.yml
+  docker-compose.gpu.yml
+```
 
-### Option 1: Install from GitHub (Recommended)
+| Service | Port | Role |
+|---------|------|------|
+| MCP HTTP Stream | **8765** `/mcp` | Cursor, DevForge, agents distants |
+| REST API | **8766** `/api` | UI (GPU, Docker) |
+| Web UI | **8080** | Tableau de bord |
 
-1. Clone or download this repository:
-   ```bash
-   git clone https://github.com/bobdivx/zimaos-cursor-mcp.git
-   cd zimaos-cursor-mcp
-   ```
-   
+## Installation locale (dev)
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+Prerequis : Node.js 20+, pnpm 10 (`corepack enable`).
 
-3. Build the project:
-   ```bash
-   npm run build
-   ```
+```bash
+git clone https://github.com/bobdivx/zimatools.git
+cd zimatools
+cp .env.example .env
+# renseigner ZIMAOS_API_BASE / ZIMAOS_API_TOKEN / SSH si besoin
+pnpm install
+pnpm --filter @zimatools/mcp build
+```
 
-4. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
+Deux terminaux :
 
-5. Edit `.env` and add your ZimaOS configuration:
-   ```env
-   ZIMAOS_API_BASE=http://your-zimaos-host.local
-   ZIMAOS_API_TOKEN=your-api-token-here
-   ```
+```bash
+pnpm dev:mcp    # MCP HTTP :8765 + REST :8766
+pnpm dev:web    # UI :4321 (proxy /api -> 8766)
+```
 
-### Option 2: Use directly with Cursor MCP configuration
+Stdio (Cursor local uniquement) :
 
-You can configure Cursor to use this server directly without installing it globally:
+```bash
+pnpm --filter @zimatools/mcp dev:stdio
+```
 
-## Configuration
+## Installation sur ZimaOS
 
-### Cursor MCP Configuration
+Pas de deploiement automatique dans cette version. Compose pret a copier :
 
-Add the following to your Cursor MCP configuration file (typically located at `~/.cursor/mcp.json` on macOS/Linux or `C:\Users\<YourUsername>\.cursor\mcp.json` on Windows):
+1. Cloner (ou copier) le depot sur le NAS.
+2. `cp .env.example .env` et renseigner les tokens.
+3. Sans GPU :
+
+```bash
+docker compose up -d --build
+```
+
+4. Avec NVIDIA (nvidia-container-toolkit) :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
+
+- UI : `http://<nas>:8080`
+- MCP : `http://<nas>:8765/mcp`
+- REST : `http://<nas>:8766/health`
+
+Le socket Docker est monte (`/var/run/docker.sock`). Le runtime NVIDIA est **optionnel**.
+
+## Endpoint MCP (HTTP)
+
+Transport : **Streamable HTTP** (mcp-framework `http-stream`), pas seulement stdio.
+
+- URL : `http://<nas-ou-localhost>:8765/mcp`
+- Methodes : `POST` / `GET` / `DELETE` / `OPTIONS`
+- CORS ouvert par defaut (`MCP_CORS_ORIGIN=*`, `MCP_HOST=0.0.0.0`)
+
+Exemple Cursor / DevForge (`mcp.json`) :
 
 ```json
 {
   "mcpServers": {
-    "zimaos": {
+    "zimatools": {
+      "url": "http://zimacube.local:8765/mcp"
+    }
+  }
+}
+```
+
+Stdio local (sans NAS) :
+
+```json
+{
+  "mcpServers": {
+    "zimatools": {
       "command": "node",
-      "args": ["<absolute-path-to-zimaos-cursor-mcp>/dist/index.js"],
+      "args": ["<chemin>/apps/mcp/dist/index.js", "--stdio"],
       "env": {
-        "ZIMAOS_API_BASE": "http://your-zimaos-host.local",
-        "ZIMAOS_API_TOKEN": "your-api-token-here"
+        "ZIMAOS_API_BASE": "http://zimacube.local",
+        "ZIMAOS_API_TOKEN": "..."
       }
     }
   }
 }
 ```
 
-**Important:** Replace `<absolute-path-to-zimaos-cursor-mcp>` with the actual path to this repository on your system.
+REST UI (Hono, memes outils GPU) :
 
-### Environment Variables
+- `GET /health`
+- `GET /api/gpu/status`
+- `POST /api/gpu/acquire` `{ "client": "popcorn" }`
+- `POST /api/gpu/release` `{ "client": "popcorn" }`
+- `GET /api/gpu/queue`
+- `POST /api/gpu/priority` `{ "client": "ollama", "priority": 50 }`
+- `GET /api/docker/containers`
 
-**Required for file operations:**
-- `ZIMAOS_API_BASE` (required): The base URL of your ZimaOS API (e.g., `http://zimacube.local` or `http://192.168.1.100`)
-- `ZIMAOS_API_TOKEN` (required): Your ZimaOS API token (obtain from your ZimaOS administration panel)
+## Outils MCP
 
-**Required for Docker management (SSH):**
-- `ZIMAOS_SSH_PASSWORD` (required): SSH password for your ZimaOS system
-- `ZIMAOS_SSH_HOST` (optional): SSH hostname. If not provided, will be auto-detected from `ZIMAOS_API_BASE`
-- `ZIMAOS_SSH_USERNAME` (optional): SSH username, defaults to `zimaos`
-- `ZIMAOS_SSH_PORT` (optional): SSH port, defaults to `22`
+### Fichiers ZimaOS (existants, via API)
 
-**Note:** If `ZIMAOS_SSH_HOST` is not set, it will be automatically extracted from `ZIMAOS_API_BASE` (e.g., `http://zimacube.local:90` → `zimacube.local`)
+`read_file_from_zimaos`, list / write / edit / search / mkdir / stats — voir `apps/mcp/src/tools/`.
 
-## Getting Your ZimaOS API Token
+### Docker (existants, via SSH)
 
-1. Access your ZimaOS administration panel
-2. Navigate to the API settings or developer section
-3. Generate or copy your API token
-4. Use this token in your configuration
+`list_docker_containers_zimaos`, start / stop / restart / logs / info.
 
-## Usage
+### GPU (v0 — file en memoire + nvidia-smi)
 
-Once configured, the MCP server will be automatically available in Cursor. You can use it to:
+| Outil | Role |
+|-------|------|
+| `gpu.status` | nvidia-smi + lease + file. Si `nvidia-smi` absent : **stub**. |
+| `gpu.acquire` | Lease exclusif. Priorite plus haute **preempte**. |
+| `gpu.release` | Relache et promeut la file. |
+| `gpu.queue_list` | Lease courant + file. |
+| `gpu.set_priority` | Priorite client (defaut popcorn=100, ollama=50, agents=25). |
 
-- Ask Cursor to list files in a directory on your ZimaOS
-- Read files from ZimaOS
-- Create or edit files on ZimaOS
-- Search for files by name or content
-- Get information about files and directories
+Modele : **un seul holder**. Popcorn vole le GPU a Ollama / agents ; le detenteur precedent est refile.
 
-Example queries you can make to Cursor:
+**Stub / limites v0**
 
-**File Operations:**
-- "List all files in /Documents on my ZimaOS"
-- "Read the contents of /path/to/file.txt from ZimaOS"
-- "Search for files containing 'project' on my ZimaOS"
+- Queue et priorites **en memoire** (perdues au restart).
+- `nvidia-smi` parse CSV ; sinon GPU factice `stub-gpu`.
+- Pas encore d'arret/redemarrage reel d'Ollama ou de containers GPU.
+- Liste Docker UI : SSH si configure, sinon placeholder.
 
-**Docker Operations:**
-- "List all Docker containers on my ZimaOS"
-- "Start the Docker container named 'myapp'"
-- "Show me the logs from container 'nginx'"
-- "Get information about container 'database'"
-- "Restart the container with ID abc123"
+## Variables d'environnement
 
-## Development
+Voir `.env.example`.
 
-### Building the Project
+| Variable | Defaut | Role |
+|----------|--------|------|
+| `MCP_TRANSPORT` | `http` | `http` ou `stdio` |
+| `MCP_PORT` | `8765` | MCP Streamable HTTP |
+| `MCP_HOST` | `0.0.0.0` | Bind NAS |
+| `MCP_ENDPOINT` | `/mcp` | Chemin MCP |
+| `API_PORT` | `8766` | REST Hono |
+| `PUBLIC_API_URL` | hostname:8766 | URL API vue par le navigateur |
+| `ZIMAOS_API_BASE` / `TOKEN` | — | Outils fichiers |
+| `ZIMAOS_SSH_*` | — | Outils Docker |
+
+## Developpement
 
 ```bash
-npm run build
+pnpm build          # mcp + web
+pnpm --filter @zimatools/web build
 ```
 
-### Running in Development Mode
+L'integration Home Assistant historique est dans `legacy/ha/`.
 
-```bash
-npm run dev
-```
+## Licence
 
-This will compile TypeScript and start the server.
-
-### Project Structure
-
-```
-zimaos-cursor-mcp/
-├── src/
-│   ├── index.ts              # Main server entry point
-│   ├── lib/
-│   │   └── getAxios.ts       # API client configuration (File, Docker, Storage APIs)
-│   ├── tools/                # MCP tools (file and Docker operations)
-│   │   ├── *.ts              # File management tools
-│   │   ├── ListDockerContainersTool.ts
-│   │   ├── StartDockerContainerTool.ts
-│   │   ├── StopDockerContainerTool.ts
-│   │   ├── RestartDockerContainerTool.ts
-│   │   ├── GetDockerContainerLogsTool.ts
-│   │   └── GetDockerContainerInfoTool.ts
-│   ├── resources/            # MCP resources
-│   └── prompts/              # MCP prompts
-├── dist/                     # Compiled JavaScript (generated)
-├── .env.example              # Example environment configuration
-└── package.json
-```
-
-## Troubleshooting
-
-### Server won't start
-
-- Verify that `ZIMAOS_API_BASE` and `ZIMAOS_API_TOKEN` are correctly set
-- Ensure your ZimaOS device is accessible from your machine
-- Check that the API is enabled on your ZimaOS device
-
-### Tools not loading
-
-- Make sure you've run `npm run build` to compile TypeScript
-- Verify that the `dist/` directory contains the compiled files
-- Check that all dependencies are installed with `npm install`
-
-### Connection errors
-
-- Verify the `ZIMAOS_API_BASE` URL is correct and accessible
-- Check your network connectivity to the ZimaOS device
-- Ensure the API token is valid and not expired
-
-## Security Notes
-
-⚠️ **Important Security Reminders:**
-
-- **Never commit your `.env` file** - It contains sensitive credentials
-- The `.env` file is already in `.gitignore` to prevent accidental commits
-- Always use `.env.example` as a template
-- Keep your API token secure and rotate it if compromised
-- Only share your repository after ensuring no sensitive data is committed
-
-## Publishing to GitHub
-
-If you want to publish this repository:
-
-1. Create a new repository on GitHub named `zimaos-cursor-mcp`
-
-2. Initialize git (if not already done):
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit: ZimaOS MCP Server"
-   ```
-
-3. Add your GitHub repository as remote:
-   ```bash
-   git remote add origin https://github.com/bobdivx/zimaos-cursor-mcp.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-4. **Before pushing, double-check:**
-   - No `.env` file is included (check `.gitignore`)
-   - No hardcoded credentials in any files
-   - All sensitive information is removed
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-[Add your license here - consider MIT, Apache 2.0, or another appropriate license]
-
-## Support
-
-For issues and questions, please open an issue on the GitHub repository: https://github.com/bobdivx/zimaos-cursor-mcp/issues
+A definir. Issues : https://github.com/bobdivx/zimatools/issues
