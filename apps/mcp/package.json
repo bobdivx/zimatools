@@ -1,21 +1,26 @@
 {
-  "name": "zimaos-mcp",
-  "version": "0.0.2",
+  "name": "@zimatools/mcp",
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "dev": "tsx src/index.ts",
+    "dev:stdio": "tsx src/index.ts --stdio"
   },
   "dependencies": {
-    "axios": "^1.6.8",
-    "mcp-framework": "^0.2.11",
+    "@hono/node-server": "^1.19.0",
+    "axios": "^1.11.0",
+    "hono": "^4.9.6",
+    "mcp-framework": "^0.2.22",
     "ssh2": "^1.17.0",
-    "zod": "^3.24.2"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/node": "^22.18.0",
     "@types/ssh2": "^1.15.5",
-    "tsx": "^4.19.3",
-    "typescript": "^5.3.3"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   }
 }
