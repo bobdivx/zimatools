@@ -29,6 +29,7 @@ Chart.register(
 export interface GpuSample {
   t: number;
   used: number;
+  reserved?: number;
   total: number;
   util: number | null;
   temp: number | null;
@@ -36,6 +37,7 @@ export interface GpuSample {
 
 const ice = "#3b82f6";
 const ice2 = "#4da3ff";
+const reservedColor = "#f59e0b";
 const muted = "rgba(154, 163, 178, 0.35)";
 const text = "#9aa3b2";
 
@@ -69,13 +71,20 @@ export default function GpuCharts({ samples, compact }: Props) {
 
     if (donutRef.current && last) {
       const used = last.used;
-      const free = Math.max(0, last.total - last.used);
+      const reserved = last.reserved || 0;
+      const free = Math.max(0, last.total - Math.max(used, reserved));
       charts.current.push(
         new Chart(donutRef.current, {
           type: "doughnut",
           data: {
-            labels: ["VRAM utilisee", "Libre"],
-            datasets: [{ data: [used, free || 1], backgroundColor: [ice, muted], borderWidth: 0 }],
+            labels: ["VRAM utilisee", "VRAM reservee", "Libre"],
+            datasets: [
+              {
+                data: [used, Math.max(0, reserved - used), free || 1],
+                backgroundColor: [ice, reservedColor, muted],
+                borderWidth: 0,
+              },
+            ],
           },
           options: {
             cutout: "72%",
@@ -102,6 +111,17 @@ export default function GpuCharts({ samples, compact }: Props) {
                 tension: 0.35,
                 pointRadius: 0,
                 borderWidth: 2,
+              },
+              {
+                label: "VRAM reservee (MiB)",
+                data: samples.map((s) => s.reserved ?? 0),
+                borderColor: reservedColor,
+                backgroundColor: "rgba(245,158,11,0.10)",
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                borderWidth: 1.5,
+                borderDash: [6, 3],
               },
               {
                 label: "VRAM totale (MiB)",

@@ -124,30 +124,30 @@ export const MCP_CATEGORIES: McpToolCategory[] = [
   {
     id: "gpu",
     title: "GPU",
-    description: "Arbitre VRAM exclusif : un lease a la fois, preemption par priorite.",
+    description: "Arbitre VRAM: exclusif (popcorn) ou reservations partagees, wait/SSE, preemption par priorite.",
     tools: [
       {
         name: "gpu.status",
         className: "GpuStatus",
-        summary: "nvidia-smi (ou stub), lease courant, file et priorites.",
+        summary: "nvidia-smi (ou stub), leases/reservations, VRAM libre, file et priorites.",
         enabled: true,
       },
       {
         name: "gpu.acquire",
         className: "GpuAcquire",
-        summary: "Demande un lease exclusif. Une priorite plus haute preempte le detenteur.",
+        summary: "Demande un lease (exclusif ou vramMiB partage). wait=true bloque jusqu'au grant. Une priorite plus haute preempte.",
         enabled: true,
       },
       {
         name: "gpu.release",
         className: "GpuRelease",
-        summary: "Relache le lease et promeut le prochain de la file.",
+        summary: "Relache un lease/reservation et promeut la file si assez de VRAM.",
         enabled: true,
       },
       {
         name: "gpu.queue_list",
         className: "GpuQueueList",
-        summary: "Lease actuel et file d'attente, sans requeter nvidia-smi.",
+        summary: "Leases/reservations et file d'attente, sans requeter nvidia-smi.",
         enabled: true,
       },
       {

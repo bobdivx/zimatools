@@ -9,7 +9,7 @@ interface GpuStatusInput {
 class GpuStatusTool extends MCPTool<GpuStatusInput> {
   name = "gpu.status";
   description =
-    "Statut GPU ZimaTools: nvidia-smi (ou stub), lease exclusif VRAM, file d'attente et priorites (Popcorn > Ollama > agents).";
+    "Statut GPU ZimaTools: nvidia-smi (ou stub), leases / reservations VRAM, VRAM libre pour la file, file d'attente et priorites (Popcorn exclusif > partages).";
 
   schema = {
     dummy: {

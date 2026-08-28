@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { jsonFetch } from "../lib/api";
+import { apiBase, jsonFetch } from "../lib/api";
 import AppTile, { type AppInfo } from "./AppTile";
 import GpuWidget from "./GpuWidget";
 import GpuCharts, { type GpuSample } from "./GpuCharts";
@@ -10,9 +10,8 @@ function holderClient(lease: any): string | null {
   return lease?.client ? String(lease.client) : null;
 }
 
-function appHoldsLease(app: AppInfo, client: string | null) {
-  if (!client) return false;
-  return app.gpuClient === client || app.name === client;
+function appHoldsLease(app: AppInfo, clients: string[]) {
+  return clients.some((client) => app.gpuClient === client || app.name === client);
 }
 
 export default function GpuPanel() {
@@ -24,6 +23,7 @@ export default function GpuPanel() {
   const [prioClient, setPrioClient] = useState("popcorn");
   const [prio, setPrio] = useState(100);
   const [message, setMessage] = useState<string | null>(null);
+  const [queueHint, setQueueHint] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -39,6 +39,7 @@ export default function GpuPanel() {
         const point: GpuSample = {
           t: Date.now(),
           used: gpu.memoryUsedMiB || 0,
+          reserved: status?.reservedMiB || 0,
           total: gpu.memoryTotalMiB || 0,
           util: gpu.utilizationPercent,
           temp: gpu.temperatureC,
@@ -54,6 +55,38 @@ export default function GpuPanel() {
     refresh();
     const id = setInterval(refresh, 5000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const es = new EventSource(`${apiBase()}/api/gpu/events`);
+    const onQueued = (ev: MessageEvent) => {
+      try {
+        const payload = JSON.parse(ev.data);
+        if (payload.position) setQueueHint(`en file #${payload.position} (${payload.client})`);
+      } catch {
+        /* ignore */
+      }
+      void refresh();
+    };
+    const onGranted = (ev: MessageEvent) => {
+      try {
+        const payload = JSON.parse(ev.data);
+        setQueueHint(null);
+        setMessage(`GPU accorde a ${payload.client}`);
+      } catch {
+        setQueueHint(null);
+      }
+      void refresh();
+    };
+    const onRefresh = () => {
+      void refresh();
+    };
+    es.addEventListener("queued", onQueued);
+    es.addEventListener("granted", onGranted);
+    es.addEventListener("released", onRefresh);
+    es.addEventListener("preempted", onRefresh);
+    es.addEventListener("position", onQueued);
+    return () => es.close();
   }, []);
 
   async function acquireApp(app: AppInfo) {
@@ -74,8 +107,9 @@ export default function GpuPanel() {
       setMessage(
         res.granted
           ? `Lease accorde a ${client} (${res.reason})`
-          : `En file pour ${client} (${res.reason})`,
+          : `En file #${res.position || "?"} pour ${client} (${res.reason})`,
       );
+      if (!res.granted && res.position) setQueueHint(`en file #${res.position} (${client})`);
       await refresh();
     } catch (e: any) {
       setError(e.message || String(e));
@@ -84,16 +118,16 @@ export default function GpuPanel() {
     }
   }
 
-  async function release() {
+  async function release(client?: string) {
     setBusy(true);
     setMessage(null);
     try {
-      const client = data?.lease?.client;
       await jsonFetch("/api/gpu/release", {
         method: "POST",
         body: JSON.stringify(client ? { client } : {}),
       });
-      setMessage("Lease libere");
+      setMessage(client ? `Lease libere (${client})` : "Leases liberes");
+      setQueueHint(null);
       await refresh();
     } catch (e: any) {
       setError(e.message || String(e));
@@ -120,9 +154,11 @@ export default function GpuPanel() {
   const gpus = data?.gpus || [];
   const gpu = gpus[0];
   const lease = data?.lease;
+  const leases = data?.leases || (lease ? [lease] : []);
   const queue = data?.queue || [];
-  const client = holderClient(lease);
-  const holderApp = apps.find((a) => appHoldsLease(a, client));
+  const reservations = data?.reservations || [];
+  const clients = leases.map((l: any) => String(l.client));
+  const holderApp = apps.find((a) => appHoldsLease(a, clients));
   const gpuApps = apps.filter((a) => a.gpu);
   const otherApps = apps.filter((a) => !a.gpu);
   const picker = [...gpuApps, ...otherApps];
@@ -139,29 +175,49 @@ export default function GpuPanel() {
           <span>{message}</span>
         </div>
       )}
+      {queueHint && (
+        <div class="alert alert-info text-sm">
+          <span>{queueHint}</span>
+        </div>
+      )}
 
-      {gpu && <GpuWidget gpu={gpu} stub={data?.stub} />}
+      {gpu && (
+        <GpuWidget
+          gpu={gpu}
+          stub={data?.stub}
+          reservedMiB={data?.reservedMiB || 0}
+          freeForQueueMiB={data?.freeForQueueMiB}
+        />
+      )}
 
       {samples.length > 0 && <GpuCharts samples={samples} />}
 
       <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div class="zima-card">
-          <div class="zima-kicker">Lease exclusif</div>
-          <h2 class="text-xl font-semibold mt-1">Detenteur actuel</h2>
-          {lease ? (
-            <div class="mt-3 space-y-1">
-              <p class="text-lg font-semibold">{holderApp?.title || lease.client}</p>
-              <p class="text-sm opacity-60">
-                client {lease.client} · priorite {lease.priority}
-                {lease.preemptedFrom ? ` · a preempté ${lease.preemptedFrom}` : ""}
-              </p>
-              <p class="text-xs opacity-40">depuis {new Date(lease.acquiredAt).toLocaleString("fr-FR")}</p>
-            </div>
+          <div class="zima-kicker">{leases.some((l: any) => l.exclusive) ? "Lease exclusif" : "Reservations"}</div>
+          <h2 class="text-xl font-semibold mt-1">Detenteur(s) actuel(s)</h2>
+          {leases.length > 0 ? (
+            <ul class="mt-3 space-y-2">
+              {leases.map((item: any) => (
+                <li key={item.id} class="text-sm">
+                  <p class="text-lg font-semibold">{item.client === lease?.client ? holderApp?.title || item.client : item.client}</p>
+                  <p class="opacity-60">
+                    {item.exclusive ? "exclusif" : `${item.vramMiB} MiB`} · prio {item.priority}
+                    {item.preemptedFrom ? ` · a preempté ${item.preemptedFrom}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p class="mt-3 opacity-60">Aucun lease — le GPU est libre.</p>
           )}
+          {reservations.length > 0 && (
+            <p class="mt-3 text-xs opacity-50">
+              Reserve {data?.reservedMiB || 0} MiB · libre file {data?.freeForQueueMiB ?? "—"} MiB
+            </p>
+          )}
           <div class="mt-4 flex flex-wrap gap-2">
-            <button class="btn btn-primary btn-sm" onClick={release} disabled={busy || !lease}>
+            <button class="btn btn-primary btn-sm" onClick={() => release()} disabled={busy || leases.length === 0}>
               Liberer
             </button>
             <button class="btn btn-ghost btn-sm" onClick={refresh} disabled={busy}>
@@ -177,9 +233,12 @@ export default function GpuPanel() {
             <p class="mt-3 opacity-60">File vide.</p>
           ) : (
             <ul class="mt-3 space-y-2">
-              {queue.map((item: any) => (
+              {queue.map((item: any, idx: number) => (
                 <li class="flex justify-between text-sm" key={item.id}>
-                  <span>{item.client}</span>
+                  <span>
+                    #{idx + 1} {item.client}
+                    {item.exclusive ? " · exclusif" : item.vramMiB ? ` · ${item.vramMiB} MiB` : ""}
+                  </span>
                   <span class="opacity-60">prio {item.priority}</span>
                 </li>
               ))}
@@ -193,8 +252,8 @@ export default function GpuPanel() {
           <div class="zima-kicker">Applications ZimaOS</div>
           <h2 class="text-xl font-semibold mt-1">Choisir une app pour acquerir le GPU</h2>
           <p class="text-sm opacity-60 mt-1">
-            Cliquez une tuile presente sur le NAS. popcorn* → client popcorn (100), ollama → 50, le reste → nom du
-            conteneur (25).
+            Cliquez une tuile presente sur le NAS. popcorn* → client popcorn (100, exclusif), ollama → 50, le reste → nom
+            du conteneur (25, partage 2048 MiB).
           </p>
         </div>
         {picker.length === 0 ? (
@@ -206,7 +265,7 @@ export default function GpuPanel() {
                 key={app.id}
                 app={app}
                 selectable
-                holder={appHoldsLease(app, client)}
+                holder={appHoldsLease(app, clients)}
                 onSelect={busy ? undefined : acquireApp}
               />
             ))}

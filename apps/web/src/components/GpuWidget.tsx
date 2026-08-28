@@ -11,12 +11,16 @@ interface Gpu {
 interface Props {
   gpu: Gpu;
   stub?: boolean;
+  reservedMiB?: number;
+  freeForQueueMiB?: number;
 }
 
-export default function GpuWidget({ gpu, stub }: Props) {
+export default function GpuWidget({ gpu, stub, reservedMiB = 0, freeForQueueMiB }: Props) {
   const total = gpu.memoryTotalMiB || 0;
   const used = gpu.memoryUsedMiB || 0;
-  const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const reserved = reservedMiB || 0;
+  const usedPct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const reservedPct = total > 0 ? Math.min(100, Math.round((reserved / total) * 100)) : 0;
   return (
     <div class="zima-card">
       <div class="flex items-start justify-between gap-3">
@@ -32,17 +36,25 @@ export default function GpuWidget({ gpu, stub }: Props) {
       </div>
       <div class="mt-4 flex items-end justify-between text-sm">
         <span class="opacity-80">
-          {used} / {total} MiB
+          {used} / {total} MiB reels
         </span>
-        <span class="opacity-60">{pct}%</span>
+        <span class="opacity-60">{usedPct}%</span>
       </div>
       <div class="vram-track mt-2">
-        <div class="vram-fill" style={{ width: `${pct}%` }} />
+        <div class="vram-fill" style={{ width: `${usedPct}%` }} />
+      </div>
+      <div class="mt-3 flex items-end justify-between text-sm">
+        <span class="opacity-80">{reserved} MiB reserves</span>
+        <span class="opacity-60">{reservedPct}%</span>
+      </div>
+      <div class="vram-track mt-2">
+        <div class="vram-fill vram-fill-reserved" style={{ width: `${reservedPct}%` }} />
       </div>
       <div class="mt-3 flex gap-4 text-sm opacity-70">
         <span>Temp. {gpu.temperatureC ?? "—"} °C</span>
         <span>Util. {gpu.utilizationPercent ?? "—"} %</span>
-        <span>Libre {gpu.memoryFreeMiB} MiB</span>
+        <span>Libre smi {gpu.memoryFreeMiB} MiB</span>
+        {freeForQueueMiB != null && <span>Libre file {freeForQueueMiB} MiB</span>}
       </div>
     </div>
   );

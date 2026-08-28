@@ -254,6 +254,10 @@ body {
   background: linear-gradient(90deg, #2563eb, #4da3ff);
 }
 
+.vram-fill-reserved {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
 .tool-row {
   display: flex;
   gap: 12px;

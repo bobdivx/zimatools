@@ -8,7 +8,7 @@ interface GpuQueueListInput {
 
 class GpuQueueListTool extends MCPTool<GpuQueueListInput> {
   name = "gpu.queue_list";
-  description = "Liste le lease GPU courant et la file d'attente (priorite exclusive VRAM).";
+  description = "Liste les leases / reservations GPU et la file d'attente (sans requeter nvidia-smi).";
 
   schema = {
     dummy: {

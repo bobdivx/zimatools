@@ -10,7 +10,7 @@ interface GpuReleaseInput {
 class GpuReleaseTool extends MCPTool<GpuReleaseInput> {
   name = "gpu.release";
   description =
-    "Libere le lease GPU exclusif. Passe ensuite au premier de la file (priorite puis FIFO).";
+    "Libere un lease / reservation GPU (client ou leaseId). Sans argument, libere tous les holders. Promeut ensuite la file si assez de VRAM.";
 
   schema = {
     client: {
@@ -25,7 +25,7 @@ class GpuReleaseTool extends MCPTool<GpuReleaseInput> {
 
   async execute(input: GpuReleaseInput) {
     return JSON.stringify(
-      gpuArbiter.release({ client: input.client, leaseId: input.leaseId }),
+      await gpuArbiter.release({ client: input.client, leaseId: input.leaseId }),
       null,
       2,
     );
