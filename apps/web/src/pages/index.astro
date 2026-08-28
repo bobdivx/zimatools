@@ -1,0 +1,41 @@
+---
+import Layout from "../layouts/Layout.astro";
+import GpuPanel from "../components/GpuPanel";
+---
+
+<Layout title="ZimaTools — Tableau de bord">
+  <section class="space-y-6">
+    <div>
+      <h1 class="text-3xl font-bold">Tableau de bord</h1>
+      <p class="opacity-70 mt-2">
+        MCP HTTP, UI ZimaOS et arbitre GPU exclusif. Popcorn passe avant Ollama et les agents.
+      </p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-3">
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title">MCP</h2>
+          <p>Streamable HTTP sur le port 8765, endpoint <code>/mcp</code>.</p>
+          <a class="link" href="/gpu">Ouvrir le panneau GPU</a>
+        </div>
+      </div>
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title">GPU</h2>
+          <p>Lease exclusif VRAM. nvidia-smi si present, sinon stub en memoire.</p>
+          <a class="link" href="/gpu">Statut, file, priorites</a>
+        </div>
+      </div>
+      <div class="card bg-base-100 shadow">
+        <div class="card-body">
+          <h2 class="card-title">Docker</h2>
+          <p>Liste placeholder des conteneurs ZimaOS.</p>
+          <a class="link" href="/docker">Voir les conteneurs</a>
+        </div>
+      </div>
+    </div>
+
+    <GpuPanel client:load />
+  </section>
+</Layout>

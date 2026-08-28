@@ -1,0 +1,12 @@
+---
+import Layout from "../layouts/Layout.astro";
+import GpuPanel from "../components/GpuPanel";
+---
+
+<Layout title="ZimaTools — GPU">
+  <h1 class="text-3xl font-bold mb-4">Panneau GPU</h1>
+  <p class="opacity-70 mb-6">
+    Mode exclusif: un seul lease a la fois. Popcorn (100) preempte Ollama (50) et agents (25).
+  </p>
+  <GpuPanel client:load />
+</Layout>
