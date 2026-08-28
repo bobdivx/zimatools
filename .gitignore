@@ -9,3 +9,4 @@ __pycache__
 .DS_Store
 .pnpm-store
 coverage
+package-lock.json
