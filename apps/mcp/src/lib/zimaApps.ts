@@ -1,8 +1,8 @@
 import { dockerSockAvailable, dockerSockJson } from "./dockerSock.js";
 import { DockerSSH } from "./dockerSSH.js";
 
-const GPU_NAME_RE = /ollama|popcorn|whisper|comfy|stable-diffusion|invoke|ffmpeg|sdnext|automatic1111|musicgpt/i;
-const GPU_EXCLUDE_RE = /zimatools-mcp|zimatools-web|cloudflared/i;
+const GPU_NAME_RE = /(?:^|[\/_-])(?:ollama|whisper|comfy|stable-diffusion|invoke|ffmpeg|sdnext|automatic1111|musicgpt)(?:[\/_-]|\d|$)|popcornn-server/i;
+const GPU_EXCLUDE_RE = /zimatools-mcp|zimatools-web|cloudflared|flaresolverr|github-runner/i;
 const AGENTS_NAME_RE = /devforge|agent/i;
 
 export interface ZimaApp {
