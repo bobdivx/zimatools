@@ -46,6 +46,7 @@ body {
   background: var(--zima-canvas);
   color: #e8eaed;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-x: clip;
 }
 
 body {
@@ -136,8 +137,13 @@ body {
   line-height: 1.4;
 }
 
+.zima-brand-bar {
+  display: none;
+}
+
 .zima-main {
   flex: 1;
+  min-width: 0;
   padding: 28px 32px 48px;
   max-width: 1280px;
 }
@@ -147,6 +153,7 @@ body {
   border: 1px solid var(--zima-border);
   border-radius: 18px;
   padding: 18px 18px 16px;
+  min-width: 0;
 }
 
 .zima-kicker {
@@ -207,6 +214,7 @@ body {
   flex-direction: column;
   gap: 10px;
   min-height: 168px;
+  min-width: 0;
   text-align: left;
   color: inherit;
   cursor: default;
@@ -284,12 +292,25 @@ body {
   overflow-x: auto;
   white-space: pre;
   color: #d5deea;
+  max-width: 100%;
 }
 
 .status-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+}
+
+.chart-box {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart-box canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 @media (max-width: 960px) {
@@ -316,5 +337,94 @@ body {
   }
   .zima-main {
     padding: 20px 16px 40px;
+  }
+}
+
+@media (max-width: 720px) {
+  .zima-brand-bar {
+    display: flex;
+    align-items: center;
+    order: 1;
+    padding: 10px 12px 4px;
+    background: var(--zima-canvas);
+  }
+  .zima-brand-bar .zima-logo {
+    padding: 0;
+    font-size: 0.95rem;
+  }
+  .zima-brand-bar .zima-logo-mark {
+    width: 28px;
+    height: 28px;
+  }
+  .zima-main {
+    order: 2;
+    padding: 16px 12px 88px;
+    min-width: 0;
+  }
+  .zima-sidebar {
+    order: 3;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    height: auto;
+    z-index: 50;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-right: 0;
+    border-top: 1px solid var(--zima-border);
+    background: var(--zima-panel);
+  }
+  .zima-sidebar .zima-logo {
+    display: none;
+  }
+  .zima-nav {
+    flex: 1;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    gap: 0;
+  }
+  .zima-nav a {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    font-size: 10px;
+    line-height: 1.15;
+    border-radius: 10px;
+  }
+  .zima-nav svg {
+    width: 20px;
+    height: 20px;
+  }
+  .zima-sidebar-foot {
+    display: none;
+  }
+  .zima-card {
+    padding: 14px;
+  }
+  .app-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .app-tile {
+    min-height: auto;
+  }
+  h1 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  .tool-row {
+    flex-wrap: wrap;
+  }
+  .zima-card .input,
+  .zima-card input.input {
+    width: 100%;
   }
 }

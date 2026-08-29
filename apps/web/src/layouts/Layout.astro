@@ -12,12 +12,23 @@ const { title = "ZimaTools" } = Astro.props;
 <html lang="fr" data-theme="zima">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
   <body>
     <div class="zima-shell">
+      <div class="zima-brand-bar">
+        <a href="/" class="zima-logo">
+          <span class="zima-logo-mark">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3 20 8v8l-8 5-8-5V8l8-5Z" stroke="#fff" stroke-width="1.7" />
+              <circle cx="12" cy="12" r="2.4" fill="#fff" />
+            </svg>
+          </span>
+          ZimaTools
+        </a>
+      </div>
       <Nav pathname={Astro.url.pathname} />
       <main class="zima-main">
         <slot />

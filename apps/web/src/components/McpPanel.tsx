@@ -21,6 +21,9 @@ function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
         ],
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        resizeDelay: 0,
         cutout: "74%",
         animation: false,
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
@@ -29,11 +32,11 @@ function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
     return () => chart.destroy();
   }, [ok]);
   return (
-    <div class="flex items-center gap-3">
-      <div class="relative w-14 h-14">
+    <div class="flex flex-wrap items-center gap-3 min-w-0">
+      <div class="relative w-14 h-14 chart-box">
         <canvas ref={ref} />
       </div>
-      <div>
+      <div class="min-w-0">
         <div class="text-sm font-semibold">{label}</div>
         <div class={`text-xs ${ok ? "text-success" : "text-error"}`}>{ok ? "up" : "down"}</div>
       </div>
@@ -101,7 +104,7 @@ export default function McpPanel() {
 
       <div class="zima-card">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
+          <div class="min-w-0">
             <div class="zima-kicker">Statut live</div>
             <h2 class="text-xl font-semibold mt-1">Serveur MCP ZimaTools</h2>
             <p class="text-sm opacity-60 mt-1">
@@ -112,14 +115,14 @@ export default function McpPanel() {
             {copied ? "URL copiee" : "Copier l'URL MCP"}
           </button>
         </div>
-        <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <div class="mt-5 grid gap-4 min-w-0 md:grid-cols-2">
           <HealthDonut ok={restOk} label={`REST :${data?.rest?.port || 8766}/health`} />
           <HealthDonut ok={mcpOk} label={`HTTP stream :${data?.mcp?.port || 8765}/mcp`} />
         </div>
         <p class="mt-4 font-mono text-sm text-secondary break-all">{mcpUrl}</p>
       </div>
 
-      <div class="grid gap-4 lg:grid-cols-2">
+      <div class="grid gap-4 min-w-0 lg:grid-cols-2">
         <div class="zima-card">
           <div class="zima-kicker">Cursor / DevForge</div>
           <h3 class="font-semibold mt-1">Config HTTP (a coller)</h3>
@@ -134,7 +137,7 @@ export default function McpPanel() {
         </div>
       </div>
 
-      <div class="grid gap-4 lg:grid-cols-3">
+      <div class="grid gap-4 min-w-0 lg:grid-cols-3">
         {categories.map((cat: any) => (
           <section class="zima-card" key={cat.id}>
             <div class="zima-kicker">{cat.id}</div>

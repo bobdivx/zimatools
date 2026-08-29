@@ -23,8 +23,8 @@ export default function GpuWidget({ gpu, stub, reservedMiB = 0, freeForQueueMiB 
   const reservedPct = total > 0 ? Math.min(100, Math.round((reserved / total) * 100)) : 0;
   return (
     <div class="zima-card">
-      <div class="flex items-start justify-between gap-3">
-        <div>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
           <div class="zima-kicker">GPU</div>
           <h3 class="text-lg font-semibold mt-1">{gpu.name}</h3>
         </div>
@@ -34,7 +34,7 @@ export default function GpuWidget({ gpu, stub, reservedMiB = 0, freeForQueueMiB 
           <span class="zima-pill zima-pill-gpu">nvidia-smi</span>
         )}
       </div>
-      <div class="mt-4 flex items-end justify-between text-sm">
+      <div class="mt-4 flex flex-wrap items-end justify-between gap-2 text-sm">
         <span class="opacity-80">
           {used} / {total} MiB reels
         </span>
@@ -43,14 +43,14 @@ export default function GpuWidget({ gpu, stub, reservedMiB = 0, freeForQueueMiB 
       <div class="vram-track mt-2">
         <div class="vram-fill" style={{ width: `${usedPct}%` }} />
       </div>
-      <div class="mt-3 flex items-end justify-between text-sm">
+      <div class="mt-3 flex flex-wrap items-end justify-between gap-2 text-sm">
         <span class="opacity-80">{reserved} MiB reserves</span>
         <span class="opacity-60">{reservedPct}%</span>
       </div>
       <div class="vram-track mt-2">
         <div class="vram-fill vram-fill-reserved" style={{ width: `${reservedPct}%` }} />
       </div>
-      <div class="mt-3 flex gap-4 text-sm opacity-70">
+      <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm opacity-70">
         <span>Temp. {gpu.temperatureC ?? "—"} °C</span>
         <span>Util. {gpu.utilizationPercent ?? "—"} %</span>
         <span>Libre smi {gpu.memoryFreeMiB} MiB</span>

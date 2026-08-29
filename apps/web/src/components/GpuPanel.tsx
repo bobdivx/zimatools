@@ -6,10 +6,6 @@ import GpuCharts, { type GpuSample } from "./GpuCharts";
 
 const MAX_SAMPLES = 30;
 
-function holderClient(lease: any): string | null {
-  return lease?.client ? String(lease.client) : null;
-}
-
 function appHoldsLease(app: AppInfo, clients: string[]) {
   return clients.some((client) => app.gpuClient === client || app.name === client);
 }
@@ -159,9 +155,7 @@ export default function GpuPanel() {
   const reservations = data?.reservations || [];
   const clients = leases.map((l: any) => String(l.client));
   const holderApp = apps.find((a) => appHoldsLease(a, clients));
-  const gpuApps = apps.filter((a) => a.gpu);
-  const otherApps = apps.filter((a) => !a.gpu);
-  const picker = [...gpuApps, ...otherApps];
+  const picker = apps.filter((a) => a.gpu);
 
   return (
     <div class="space-y-5">
@@ -192,7 +186,7 @@ export default function GpuPanel() {
 
       {samples.length > 0 && <GpuCharts samples={samples} />}
 
-      <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div class="grid gap-4 min-w-0 lg:grid-cols-[1.4fr_1fr]">
         <div class="zima-card">
           <div class="zima-kicker">{leases.some((l: any) => l.exclusive) ? "Lease exclusif" : "Reservations"}</div>
           <h2 class="text-xl font-semibold mt-1">Detenteur(s) actuel(s)</h2>
@@ -249,15 +243,15 @@ export default function GpuPanel() {
 
       <section>
         <div class="mb-3">
-          <div class="zima-kicker">Applications ZimaOS</div>
-          <h2 class="text-xl font-semibold mt-1">Choisir une app pour acquerir le GPU</h2>
+          <div class="zima-kicker">Apps GPU</div>
+          <h2 class="text-xl font-semibold mt-1">Apps GPU</h2>
           <p class="text-sm opacity-60 mt-1">
-            Cliquez une tuile presente sur le NAS. popcorn* → client popcorn (100, exclusif), ollama → 50, le reste → nom
+            Cliquez une tuile GPU presente sur le NAS. popcorn* → client popcorn (100, exclusif), ollama → 50, le reste → nom
             du conteneur (25, partage 2048 MiB).
           </p>
         </div>
         {picker.length === 0 ? (
-          <div class="zima-card opacity-70">Aucune app renvoyee par /api/apps.</div>
+          <div class="zima-card opacity-70">Aucune app GPU renvoyee par /api/apps.</div>
         ) : (
           <div class="app-grid">
             {picker.map((app) => (
@@ -280,13 +274,13 @@ export default function GpuPanel() {
         </p>
         <div class="flex flex-wrap gap-2 items-end">
           <input
-            class="input input-bordered input-sm"
+            class="input input-bordered input-sm w-full sm:w-auto"
             value={prioClient}
             onInput={(e) => setPrioClient(e.currentTarget.value)}
             placeholder="client"
           />
           <input
-            class="input input-bordered input-sm w-24"
+            class="input input-bordered input-sm w-full sm:w-24"
             type="number"
             value={prio}
             onInput={(e) => setPrio(Number(e.currentTarget.value))}

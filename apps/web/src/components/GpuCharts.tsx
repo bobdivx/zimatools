@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import {
   ArcElement,
   CategoryScale,
@@ -41,15 +41,57 @@ const reservedColor = "#f59e0b";
 const muted = "rgba(154, 163, 178, 0.35)";
 const text = "#9aa3b2";
 
-function labelsOf(samples: GpuSample[]) {
+function useMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    const apply = () => setMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, []);
+  return mobile;
+}
+
+function labelsOf(samples: GpuSample[], mobile: boolean) {
   return samples.map((s) => {
     const d = new Date(s.t);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    if (mobile) return `${mm}:${ss}`;
+    return `${String(d.getHours()).padStart(2, "0")}:${mm}:${ss}`;
   });
 }
 
 const grid = { color: "rgba(255,255,255,0.04)" };
-const ticks = { color: text, font: { size: 10 } };
+
+function tickFont(mobile: boolean) {
+  return { color: text, font: { size: mobile ? 9 : 10 }, maxRotation: 0, autoSkip: true };
+}
+
+function chartBase() {
+  return { responsive: true as const, maintainAspectRatio: false as const, resizeDelay: 0, animation: false as const };
+}
+
+function lineLegend(mobile: boolean, compact: boolean) {
+  return {
+    display: !compact,
+    position: (mobile ? "bottom" : "top") as "bottom" | "top",
+    labels: { color: text, boxWidth: mobile ? 8 : 10, font: { size: mobile ? 9 : 11 } },
+  };
+}
+
+function xScale(mobile: boolean, compact: boolean) {
+  return {
+    display: !compact,
+    grid,
+    ticks: { ...tickFont(mobile), maxTicksLimit: mobile ? 4 : 8 },
+  };
+}
 
 interface Props {
   samples: GpuSample[];
@@ -57,6 +99,7 @@ interface Props {
 }
 
 export default function GpuCharts({ samples, compact }: Props) {
+  const mobile = useMobile();
   const vramRef = useRef<HTMLCanvasElement>(null);
   const utilRef = useRef<HTMLCanvasElement>(null);
   const tempRef = useRef<HTMLCanvasElement>(null);
@@ -67,7 +110,8 @@ export default function GpuCharts({ samples, compact }: Props) {
     charts.current.forEach((c) => c.destroy());
     charts.current = [];
     const last = samples[samples.length - 1];
-    const labels = labelsOf(samples);
+    const labels = labelsOf(samples, mobile);
+    const ticks = tickFont(mobile);
 
     if (donutRef.current && last) {
       const used = last.used;
@@ -87,9 +131,9 @@ export default function GpuCharts({ samples, compact }: Props) {
             ],
           },
           options: {
+            ...chartBase(),
             cutout: "72%",
             plugins: { legend: { display: false }, tooltip: { enabled: true } },
-            animation: false,
           },
         }),
       );
@@ -136,10 +180,10 @@ export default function GpuCharts({ samples, compact }: Props) {
             ],
           },
           options: {
-            animation: false,
-            plugins: { legend: { display: !compact, labels: { color: text, boxWidth: 10 } } },
+            ...chartBase(),
+            plugins: { legend: lineLegend(mobile, !!compact) },
             scales: {
-              x: { display: !compact, grid, ticks },
+              x: xScale(mobile, !!compact),
               y: { display: true, grid, ticks, beginAtZero: true },
             },
           },
@@ -167,10 +211,10 @@ export default function GpuCharts({ samples, compact }: Props) {
             ],
           },
           options: {
-            animation: false,
+            ...chartBase(),
             plugins: { legend: { display: false } },
             scales: {
-              x: { display: !compact, grid, ticks },
+              x: xScale(mobile, !!compact),
               y: { min: 0, max: 100, grid, ticks },
             },
           },
@@ -198,10 +242,10 @@ export default function GpuCharts({ samples, compact }: Props) {
             ],
           },
           options: {
-            animation: false,
+            ...chartBase(),
             plugins: { legend: { display: false } },
             scales: {
-              x: { display: !compact, grid, ticks },
+              x: xScale(mobile, !!compact),
               y: { grid, ticks },
             },
           },
@@ -213,16 +257,16 @@ export default function GpuCharts({ samples, compact }: Props) {
       charts.current.forEach((c) => c.destroy());
       charts.current = [];
     };
-  }, [samples, compact]);
+  }, [samples, compact, mobile]);
 
   const last = samples[samples.length - 1];
   const pct = last && last.total > 0 ? Math.round((last.used / last.total) * 100) : 0;
 
   if (compact) {
     return (
-      <div class="grid gap-3 md:grid-cols-[140px_1fr]">
-        <div class="relative">
-          <canvas ref={donutRef} height={140} />
+      <div class="grid grid-cols-1 gap-3 min-w-0 md:grid-cols-[140px_1fr]">
+        <div class="relative chart-box mx-auto w-full max-w-[160px] h-40 md:max-w-none md:mx-0 md:h-36">
+          <canvas ref={donutRef} />
           <div class="absolute inset-0 grid place-items-center pointer-events-none">
             <div class="text-center">
               <div class="text-lg font-semibold">{pct}%</div>
@@ -230,7 +274,7 @@ export default function GpuCharts({ samples, compact }: Props) {
             </div>
           </div>
         </div>
-        <div class="h-36">
+        <div class="h-36 chart-box">
           <canvas ref={vramRef} />
         </div>
       </div>
@@ -238,16 +282,16 @@ export default function GpuCharts({ samples, compact }: Props) {
   }
 
   return (
-    <div class="grid gap-4 lg:grid-cols-3">
-      <div class="zima-card lg:col-span-2">
+    <div class="grid gap-4 min-w-0 lg:grid-cols-3">
+      <div class="zima-card lg:col-span-2 min-w-0">
         <div class="zima-kicker mb-2">Historique VRAM</div>
-        <div class="h-48">
+        <div class="h-48 chart-box">
           <canvas ref={vramRef} />
         </div>
       </div>
-      <div class="zima-card">
+      <div class="zima-card min-w-0">
         <div class="zima-kicker mb-2">Occupation actuelle</div>
-        <div class="relative h-40">
+        <div class="relative h-40 chart-box">
           <canvas ref={donutRef} />
           <div class="absolute inset-0 grid place-items-center pointer-events-none">
             <div class="text-center">
@@ -257,15 +301,15 @@ export default function GpuCharts({ samples, compact }: Props) {
           </div>
         </div>
       </div>
-      <div class="zima-card">
+      <div class="zima-card min-w-0">
         <div class="zima-kicker mb-2">Utilisation GPU</div>
-        <div class="h-36">
+        <div class="h-36 chart-box">
           <canvas ref={utilRef} />
         </div>
       </div>
-      <div class="zima-card">
+      <div class="zima-card min-w-0">
         <div class="zima-kicker mb-2">Temperature</div>
-        <div class="h-36">
+        <div class="h-36 chart-box">
           <canvas ref={tempRef} />
         </div>
       </div>
