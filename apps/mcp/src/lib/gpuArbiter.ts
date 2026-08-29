@@ -77,6 +77,8 @@ export interface AcquireResult {
   released?: boolean;
   previous?: Lease | null;
   previousList?: Lease[];
+  wasQueued?: boolean;
+  waitMs?: number;
 }
 
 export type GpuEventPayload = Record<string, unknown> & {
@@ -297,6 +299,8 @@ export class GpuArbiter {
       released: extra.released,
       previous: extra.previous,
       previousList: extra.previousList,
+      wasQueued: extra.wasQueued,
+      waitMs: extra.waitMs,
     };
   }
 
@@ -505,6 +509,8 @@ export class GpuArbiter {
         granted: true,
         reason: "already_held",
         lease: existing,
+        wasQueued: false,
+        waitMs: 0,
       });
     }
 
@@ -542,6 +548,8 @@ export class GpuArbiter {
         lease,
         preempted: victims[0] ?? undefined,
         preemptedList: victims,
+        wasQueued: false,
+        waitMs: 0,
       });
     };
 
@@ -570,23 +578,31 @@ export class GpuArbiter {
       granted: false,
       reason: "queued",
       position,
+      wasQueued: true,
+      waitMs: 0,
     });
   }
 
   async waitForGrant(client: string, timeoutMs = DEFAULT_WAIT_MS, opts: AcquireOptions & { ttlSeconds?: number } = {}): Promise<AcquireResult> {
+    const t0 = Date.now();
+    const withWaitMeta = (payload: AcquireResult, wasQueued: boolean): AcquireResult => ({
+      ...payload,
+      wasQueued,
+      waitMs: Date.now() - t0,
+    });
     const key = client.trim() || "unknown";
     const held = this.leases.find((l) => l.client === key);
     if (held) {
-      return this.snapshotResult({ granted: true, reason: "already_held", lease: held });
+      return withWaitMeta(this.snapshotResult({ granted: true, reason: "already_held", lease: held }), false);
     }
 
     const result = await this.acquire(key, opts.ttlSeconds, opts);
-    if (result.granted) return result;
+    if (result.granted) return withWaitMeta(result, false);
 
     return new Promise<AcquireResult>((resolve) => {
       const finish = (payload: AcquireResult) => {
         cleanup();
-        resolve(payload);
+        resolve(withWaitMeta(payload, true));
       };
       const onGranted = (payload: GpuEventPayload) => {
         if (payload.client === key) {

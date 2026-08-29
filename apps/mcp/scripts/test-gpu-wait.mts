@@ -17,6 +17,8 @@ async function testWaitNotify() {
   assert(rel.released === true, "popcorn release failed");
   const agents = await waitP;
   assert(agents.granted === true, `agents should be granted after release, got ${JSON.stringify(agents)}`);
+  assert(agents.wasQueued === true, "queued waiter should set wasQueued true");
+  assert(typeof agents.waitMs === "number" && agents.waitMs > 0, `queued waiter waitMs should be > 0, got ${agents.waitMs}`);
   await a.release({ client: "agents" });
   console.log("ok wait/notify: popcorn hold -> agents wait -> release -> granted");
 }
@@ -43,11 +45,26 @@ async function testTimeout() {
   await a.acquire("popcorn");
   const r = await a.waitForGrant("agents", 200);
   assert(r.granted === false && r.reason === "timeout", "wait should timeout");
+  assert(r.wasQueued === true, "timeout after queue should set wasQueued true");
+  assert(typeof r.waitMs === "number" && r.waitMs >= 180, `timeout waitMs should be ~elapsed, got ${r.waitMs}`);
   await a.release({ client: "popcorn" });
   console.log("ok wait timeout");
+}
+
+async function testImmediateWait() {
+  const a = new GpuArbiter();
+  const r = await a.waitForGrant("wasq-instant", 4000, { exclusive: false });
+  assert(r.granted === true, "immediate wait should grant");
+  assert(r.wasQueued === false, "immediate grant should set wasQueued false");
+  assert(typeof r.waitMs === "number" && r.waitMs >= 0 && r.waitMs < 500, `immediate waitMs should be small, got ${r.waitMs}`);
+  const nb = await a.acquire("wasq-nb", undefined, { exclusive: false });
+  assert(nb.granted === true && nb.wasQueued === false && nb.waitMs === 0, "non-blocking grant should include wasQueued false waitMs 0");
+  await a.release({});
+  console.log("ok immediate wait + non-blocking fields");
 }
 
 await testWaitNotify();
 await testSharedVram();
 await testTimeout();
+await testImmediateWait();
 console.log("ALL GPU TESTS PASSED");
