@@ -36,11 +36,11 @@ zimatools/
 
 Images Docker Hub : `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
-> **Un seul port expose** (`8484`). MCP et REST ecoutent en interne (`0.0.0.0:8765` / `8766`) ; le conteneur `web` proxifie `/mcp`, `/api` et `/health`. Ne pas mettre `network_mode: bridge`.
+> **Un seul port expose** (`8484`). MCP et REST restent internes (`expose` seulement) ; `web` proxifie `/mcp`, `/api`, `/health`.
 
 1. CasaOS → **App** → Installer une app personnalisee (YAML).
-2. Coller le compose ci-dessous.
-3. Si le port `8484` est pris : change uniquement `published` / `port_map` (ex. `18484`).
+2. Coller le compose ci-dessous **tel quel**.
+3. Apres install, verifier que CasaOS n'a pas reinjecte de mauvais champs (voir astuce ports).
 
 ```yaml
 services:
@@ -68,9 +68,7 @@ services:
     image: bobdivx/zimatools-web:latest
     restart: always
     ports:
-      - target: 8080
-        published: "8484"
-        protocol: tcp
+      - "8484:8080"
     environment:
       HOST: "0.0.0.0"
       PORT: "8080"
@@ -95,6 +93,26 @@ Apres install :
 - UI : `http://<nas>:8484`
 - MCP (Cursor / DevForge) : `http://<nas>:8484/mcp`
 - REST : `http://<nas>:8484/health`
+
+### Astuce : « il y a des ports en cours d'utilisation »
+
+CasaOS reecrit souvent le YAML a l'enregistrement et provoque le conflit. Verifier / corriger :
+
+| Interdit | Pourquoi |
+|----------|----------|
+| `ports:` sur le service **mcp** | MCP n'expose rien sur l'hote ; seul `web` publie `8484` |
+| `8484` declare deux fois (mcp + web) | CasaOS ajoute parfois `8484:8080` sur mcp par erreur |
+| `network_mode: bridge` | Casse le DNS compose (`web` ne resolut plus `mcp`) |
+
+Liberer le port puis reinstaller :
+
+```bash
+docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '8484|8765|8766'
+docker rm -f $(docker ps -aq --filter name=zimatools) 2>/dev/null
+# Dans CasaOS : desinstaller completement l'ancienne app ZimaTools
+```
+
+Si `8484` reste pris, change **uniquement** le mapping web + `port_map` (ex. `18484:8080` et `port_map: "18484"`). L'URL MCP devient alors `http://<nas>:18484/mcp`.
 
 Optionnel : renseigner `ZIMAOS_API_TOKEN` (outils fichiers) et `ZIMAOS_SSH_PASSWORD` (outils Docker).
 

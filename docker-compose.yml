@@ -50,10 +50,12 @@ services:
       - mcp
 
 x-casaos:
+  hostname: ""
+  index: /
+  is_uncontrolled: false
   main: web
   port_map: "8484"
   scheme: http
-  index: /
   title:
     custom: ZimaTools
 
