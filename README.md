@@ -40,6 +40,8 @@ Docker Hub images: `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
 **One public port (`8484`).** `web` uses `network_mode: service:mcp` (sidecar): both share one network namespace, so the proxy reaches API/MCP on `127.0.0.1`. This avoids CasaOS DNS/`bridge` isolation that causes **502 Bad Gateway**.
 
+Validated on ZimaOS / CasaOS with Docker Hub images `bobdivx/zimatools-mcp:latest` and `bobdivx/zimatools-web:latest`.
+
 ### Steps
 
 1. Uninstall any previous ZimaTools app (free port `8484`).
@@ -54,7 +56,14 @@ Docker Hub images: `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 | Port mapping | **`8484` → `8080` TCP** | *(empty — no ports)* |
 | Main service / Web URL | Main = `mcp`, URL port `8484` | — |
 
-5. After install, open `http://<nas>:8484/health` — expect `{"ok":true,...}`.
+5. Verify:
+
+```bash
+curl -s http://127.0.0.1:8484/health
+# {"ok":true,"service":"zimatools",...}
+```
+
+Open in a browser: `http://<nas>:8484/` (dashboard) and `http://<nas>:8484/mcp` (setup page with Cursor instructions).
 
 ### Compose YAML (copy/paste)
 
@@ -107,9 +116,11 @@ x-casaos:
 | Use | URL |
 |-----|-----|
 | Dashboard | `http://<nas>:8484` |
-| MCP setup page (browser) | `http://<nas>:8484/mcp` |
-| MCP endpoint (Cursor / agents) | `http://<nas>:8484/mcp` (same URL, Streamable HTTP) |
+| MCP setup page (browser) | `http://<nas>:8484/mcp` — HTML help + copy/paste `mcp.json` |
+| MCP endpoint (Cursor / agents) | `http://<nas>:8484/mcp` — same path, Streamable HTTP |
 | REST health | `http://<nas>:8484/health` |
+
+Browsers get the setup page on `GET /mcp` (`Accept: text/html`). MCP clients (POST / session / SSE) are proxied to the MCP server.
 
 Optional env on `mcp`: set `ZIMAOS_API_TOKEN` (file tools) and `ZIMAOS_SSH_PASSWORD` (Docker tools).
 
@@ -197,12 +208,15 @@ docker compose up -d --build
 
 Transport: **Streamable HTTP** (`http-stream`), not stdio-only.
 
-- Production: `http://<nas>:8484/mcp` (through the web proxy)
-- Dev: `http://localhost:8765/mcp`
+- Production URL for agents: `http://<nas>:8484/mcp`
+- Browser setup UI (same path): open `http://<nas>:8484/mcp` in Chrome/Firefox
+- Dev (direct MCP process): `http://localhost:8765/mcp`
 - Methods: `POST` / `GET` / `DELETE` / `OPTIONS`
 - CORS open by default (`MCP_CORS_ORIGIN=*`, `MCP_HOST=0.0.0.0`)
 
 ### Cursor / DevForge (`mcp.json`)
+
+Add to `~/.cursor/mcp.json` (or your client MCP settings):
 
 ```json
 {
@@ -213,6 +227,8 @@ Transport: **Streamable HTTP** (`http-stream`), not stdio-only.
   }
 }
 ```
+
+Then reload MCP / restart Cursor. Tools `gpu.*` and ZimaOS file/Docker tools should appear.
 
 ### Local stdio (no NAS)
 
