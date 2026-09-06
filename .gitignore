@@ -10,3 +10,4 @@ __pycache__
 .pnpm-store
 coverage
 package-lock.json
+.data

@@ -199,6 +199,18 @@ body {
   border-color: rgba(245, 158, 11, 0.3);
 }
 
+.zima-pill-upd {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.zima-pill-err {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));

@@ -16,15 +16,25 @@ export interface AppInfo {
   gpuPriority?: number;
 }
 
+export type UpdateHint = "updated" | "error";
+
 interface Props {
   app: AppInfo;
   holder?: boolean;
   selectable?: boolean;
   showMeta?: boolean;
+  updateHint?: UpdateHint;
   onSelect?: (app: AppInfo) => void;
 }
 
-export default function AppTile({ app, holder, selectable, showMeta, onSelect }: Props) {
+export default function AppTile({
+  app,
+  holder,
+  selectable,
+  showMeta,
+  updateHint,
+  onSelect,
+}: Props) {
   const body = (
     <>
       <div class="app-icon">
@@ -44,6 +54,8 @@ export default function AppTile({ app, holder, selectable, showMeta, onSelect }:
         </span>
         {app.gpu && <span class="zima-pill zima-pill-gpu">GPU</span>}
         {holder && <span class="zima-pill zima-pill-hold">lease</span>}
+        {updateHint === "updated" && <span class="zima-pill zima-pill-upd">mis a jour</span>}
+        {updateHint === "error" && <span class="zima-pill zima-pill-err">erreur maj</span>}
       </div>
       {showMeta && (
         <div class="text-[11px] opacity-50 leading-snug">

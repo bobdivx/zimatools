@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { DEFAULT_GPU_WAIT_MS, gpuArbiter, type GpuEventName, type GpuEventPayload } from "./lib/gpuArbiter.js";
 import { listApps, listContainersLegacy } from "./lib/zimaApps.js";
+import { imageWatchdog, verifyWebhookSecret } from "./lib/imageWatchdog.js";
 import {
   MCP_CATEGORIES,
   MCP_VERSION,
@@ -128,8 +129,8 @@ export function startHttpApi(port: number) {
     "*",
     cors({
       origin,
-      allowMethods: ["GET", "POST", "OPTIONS"],
-      allowHeaders: ["Content-Type"],
+      allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+      allowHeaders: ["Content-Type", "Authorization", "X-Webhook-Secret"],
     }),
   );
 
@@ -224,10 +225,100 @@ export function startHttpApi(port: number) {
     return c.json(listed);
   });
 
+  app.get("/api/apps/watchdog", (c) => {
+    const host = c.req.header("x-forwarded-host") || c.req.header("host") || "";
+    const proto = (c.req.header("x-forwarded-proto") || "http").split(",")[0].trim();
+    const base =
+      process.env.PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+      (host ? `${proto}://${host.split(",")[0].trim()}` : "");
+    const st = imageWatchdog.status();
+    return c.json({
+      ok: true,
+      ...st,
+      webhookUrl: base ? `${base}/api/apps/webhook` : "/api/apps/webhook",
+      publicBaseUrl: base || null,
+    });
+  });
+
+  app.patch("/api/apps/watchdog", async (c) => {
+    const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
+    const patch: { enabled?: boolean; intervalMinutes?: number; rotateSecret?: boolean } = {};
+    if (body.enabled != null) {
+      const b = parseOptionalBool(body.enabled);
+      if (b == null) return c.json({ ok: false, error: "enabled must be boolean" }, 400);
+      patch.enabled = b;
+    }
+    if (body.intervalMinutes != null) {
+      const n = Number(body.intervalMinutes);
+      if (!Number.isFinite(n)) return c.json({ ok: false, error: "intervalMinutes invalid" }, 400);
+      patch.intervalMinutes = Math.floor(n);
+    }
+    if (parseOptionalBool(body.rotateSecret) === true) {
+      if (imageWatchdog.effectiveSecret().source === "env") {
+        return c.json(
+          {
+            ok: false,
+            error: "Secret fixé par IMAGE_WEBHOOK_SECRET (env) — retire la variable pour régénérer depuis l'UI",
+          },
+          400,
+        );
+      }
+      patch.rotateSecret = true;
+    }
+    const host = c.req.header("x-forwarded-host") || c.req.header("host") || "";
+    const proto = (c.req.header("x-forwarded-proto") || "http").split(",")[0].trim();
+    const base =
+      process.env.PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+      (host ? `${proto}://${host.split(",")[0].trim()}` : "");
+    const st = imageWatchdog.updateConfig(patch);
+    return c.json({
+      ok: true,
+      ...st,
+      webhookUrl: base ? `${base}/api/apps/webhook` : "/api/apps/webhook",
+      publicBaseUrl: base || null,
+    });
+  });
+
+  app.post("/api/apps/watchdog/run", async (c) => {
+    try {
+      const run = await imageWatchdog.enqueue("manual");
+      return c.json({ ok: true, run, ...imageWatchdog.status() });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
+  app.post("/api/apps/webhook", async (c) => {
+    const auth = c.req.header("authorization");
+    const secret = c.req.header("x-webhook-secret");
+    if (!imageWatchdog.effectiveSecret().secret) {
+      return c.json({ ok: false, error: "webhook secret not configured" }, 503);
+    }
+    if (!verifyWebhookSecret(auth, secret)) {
+      return c.json({ ok: false, error: "unauthorized" }, 401);
+    }
+    const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
+    const images: string[] = [];
+    if (typeof body.image === "string" && body.image.trim()) images.push(body.image.trim());
+    if (Array.isArray(body.images)) {
+      for (const img of body.images) {
+        if (typeof img === "string" && img.trim()) images.push(img.trim());
+      }
+    }
+    try {
+      const run = await imageWatchdog.enqueue("webhook", images.length ? images : undefined);
+      return c.json({ ok: true, run });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
   app.get("/api/docker/containers", async (c) => {
     const listed = await listContainersLegacy();
     return c.json(listed);
   });
+
+  void imageWatchdog.status();
 
   serve({ fetch: app.fetch, port, hostname: process.env.API_HOST || "0.0.0.0" }, (info) => {
     console.log(`[zimatools] REST API listening on http://${info.address}:${info.port}`);

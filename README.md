@@ -257,6 +257,11 @@ Via the public proxy: `http://<nas>:8484/...`
 - `POST /api/gpu/release` `{ "client": "popcorn" }`
 - `GET /api/gpu/queue`
 - `POST /api/gpu/priority` `{ "client": "ollama", "priority": 50 }`
+- `GET /api/apps` — inventaire conteneurs
+- `GET /api/apps/watchdog` — config + état watchdog images
+- `PATCH /api/apps/watchdog` `{ "enabled": true, "intervalMinutes": 60 }`
+- `POST /api/apps/watchdog/run` — scan manuel (pull + recreate si digest change)
+- `POST /api/apps/webhook` — déclenchement immédiat (header `Authorization: Bearer $IMAGE_WEBHOOK_SECRET` ou `X-Webhook-Secret`) ; body optionnel `{ "image": "repo:tag" }`
 - `GET /api/docker/containers`
 
 ---

@@ -24,8 +24,11 @@ services:
       ZIMAOS_API_BASE: ${ZIMAOS_API_BASE:-http://127.0.0.1}
       ZIMAOS_API_TOKEN: ${ZIMAOS_API_TOKEN:-}
       ZIMAOS_SSH_PASSWORD: ${ZIMAOS_SSH_PASSWORD:-}
+      IMAGE_WEBHOOK_SECRET: ${IMAGE_WEBHOOK_SECRET:-}
+      ZIMATOOLS_DATA_DIR: /data
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - zimatools-data:/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8766/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -57,5 +60,8 @@ x-casaos:
   scheme: http
   title:
     custom: ZimaTools
+
+volumes:
+  zimatools-data:
 
 # GPU NVIDIA: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
