@@ -1,0 +1,75 @@
+name: Release Docker images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  MCP_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/zimatools-mcp
+  WEB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/zimatools-web
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (mcp)
+        id: meta-mcp
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.MCP_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Extract metadata (web)
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push mcp
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.mcp
+          push: true
+          tags: ${{ steps.meta-mcp.outputs.tags }}
+          labels: ${{ steps.meta-mcp.outputs.labels }}
+          cache-from: type=gha,scope=mcp
+          cache-to: type=gha,mode=max,scope=mcp
+
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
