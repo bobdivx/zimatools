@@ -44,10 +44,27 @@ function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+function CopyButton({ text, label = "Copier" }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <button type="button" class="btn btn-primary btn-sm" onClick={onCopy}>
+      {copied ? "Copie" : label}
+    </button>
+  );
+}
+
 export default function McpPanel() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   async function refresh() {
     try {
@@ -78,23 +95,17 @@ export default function McpPanel() {
       mcpServers: {
         zimatools: {
           command: "node",
-          args: ["<chemin>/apps/mcp/dist/index.js", "--stdio"],
+          args: ["<path>/apps/mcp/dist/index.js", "--stdio"],
+          env: {
+            ZIMAOS_API_BASE: `http://${host}`,
+            ZIMAOS_API_TOKEN: "...",
+          },
         },
       },
     },
     null,
     2,
   );
-
-  async function copyUrl() {
-    try {
-      await navigator.clipboard.writeText(mcpUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
-  }
 
   const restOk = data?.rest?.reachable !== false && !!data?.ok && !error;
   const mcpOk = Boolean(data?.mcp?.reachable);
@@ -113,28 +124,60 @@ export default function McpPanel() {
               version {data?.version || "—"} · transport {data?.mcp?.transport || "http-stream"}
             </p>
           </div>
-          <button class="btn btn-primary btn-sm" onClick={copyUrl}>
-            {copied ? "URL copiee" : "Copier l'URL MCP"}
-          </button>
+          <CopyButton text={mcpUrl} label="Copier l'URL MCP" />
         </div>
         <div class="mt-5 grid gap-4 min-w-0 md:grid-cols-2">
           <HealthDonut ok={restOk} label="REST /health" />
           <HealthDonut ok={mcpOk} label="HTTP stream /mcp" />
         </div>
         <p class="mt-4 font-mono text-sm text-secondary break-all">{mcpUrl}</p>
+        <p class="text-xs opacity-50 mt-2">
+          Navigateur = cette page d'aide. Clients MCP (Cursor, agents) = meme URL, protocole Streamable HTTP.
+        </p>
+      </div>
+
+      <div class="zima-card">
+        <div class="zima-kicker">Configuration</div>
+        <h2 class="text-xl font-semibold mt-1">Cursor / DevForge / agents</h2>
+        <ol class="mt-4 space-y-3 text-sm opacity-90 list-decimal list-inside">
+          <li>
+            Ouvre les reglages MCP de ton client (Cursor : <span class="font-mono text-xs">mcp.json</span>).
+          </li>
+          <li>Ajoute le serveur HTTP ci-dessous (pas stdio, sauf usage local sans NAS).</li>
+          <li>
+            Redemarre le client MCP / Cursor, puis verifie que les outils{" "}
+            <span class="font-mono text-xs">gpu.*</span> et ZimaOS apparaissent.
+          </li>
+        </ol>
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-sm opacity-60">Colle ceci dans mcp.json :</p>
+          <CopyButton text={httpConfig} label="Copier le JSON" />
+        </div>
+        <pre class="code-block mt-2">{httpConfig}</pre>
+        <p class="text-xs opacity-50 mt-3">
+          Health check REST (optionnel) :{" "}
+          <span class="font-mono text-secondary">
+            {typeof window !== "undefined" ? `${window.location.origin}/health` : `http://${host}/health`}
+          </span>
+        </p>
       </div>
 
       <div class="grid gap-4 min-w-0 lg:grid-cols-2">
         <div class="zima-card">
-          <div class="zima-kicker">Cursor / DevForge</div>
-          <h3 class="font-semibold mt-1">Config HTTP (a coller)</h3>
-          <p class="text-sm opacity-60 mt-1 mb-3">mcp.json — transport Streamable HTTP vers le NAS.</p>
-          <pre class="code-block">{httpConfig}</pre>
+          <div class="zima-kicker">Astuce</div>
+          <h3 class="font-semibold mt-1">Meme URL pour tout</h3>
+          <p class="text-sm opacity-60 mt-2">
+            Sur ZimaOS, un seul port public sert l'UI, l'API et le MCP. Les agents doivent pointer vers{" "}
+            <span class="font-mono text-xs break-all">{mcpUrl}</span> — pas vers :8765.
+          </p>
         </div>
         <div class="zima-card">
           <div class="zima-kicker">Cursor local</div>
-          <h3 class="font-semibold mt-1">Variante stdio</h3>
-          <p class="text-sm opacity-60 mt-1 mb-3">Sans NAS : process Node local, meme outils GPU / fichiers.</p>
+          <div class="flex flex-wrap items-center justify-between gap-2 mt-1">
+            <h3 class="font-semibold">Variante stdio</h3>
+            <CopyButton text={stdioConfig} label="Copier" />
+          </div>
+          <p class="text-sm opacity-60 mt-1 mb-3">Sans NAS : process Node local.</p>
           <pre class="code-block">{stdioConfig}</pre>
         </div>
       </div>

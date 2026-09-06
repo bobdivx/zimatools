@@ -107,7 +107,8 @@ x-casaos:
 | Use | URL |
 |-----|-----|
 | Dashboard | `http://<nas>:8484` |
-| MCP (Cursor / DevForge / agents) | `http://<nas>:8484/mcp` |
+| MCP setup page (browser) | `http://<nas>:8484/mcp` |
+| MCP endpoint (Cursor / agents) | `http://<nas>:8484/mcp` (same URL, Streamable HTTP) |
 | REST health | `http://<nas>:8484/health` |
 
 Optional env on `mcp`: set `ZIMAOS_API_TOKEN` (file tools) and `ZIMAOS_SSH_PASSWORD` (Docker tools).

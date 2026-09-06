@@ -82,11 +82,20 @@ function resolveFile(urlPath) {
   return null;
 }
 
-function proxyTarget(pathname) {
+function isBrowserDocumentRequest(req) {
+  const method = (req.method || "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") return false;
+  const accept = String(req.headers.accept || "");
+  return accept.includes("text/html");
+}
+
+function proxyTarget(pathname, req) {
   if (pathname === "/health" || pathname === "/api" || pathname.startsWith("/api/")) {
     return API_UPSTREAM;
   }
   if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
+    // Same path: HTML docs page for browsers, Streamable HTTP for MCP clients.
+    if (isBrowserDocumentRequest(req)) return null;
     return MCP_UPSTREAM;
   }
   return null;
@@ -123,7 +132,7 @@ function proxyRequest(req, res, upstreamBase) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
-  const upstream = proxyTarget(url.pathname);
+  const upstream = proxyTarget(url.pathname, req);
 
   if (upstream) {
     proxyRequest(req, res, upstream);
