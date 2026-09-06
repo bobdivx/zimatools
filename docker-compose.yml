@@ -1,4 +1,6 @@
 services:
+  # Owns the network namespace + the single public port.
+  # `web` joins this netns and listens on :8080; MCP/API stay on :8765/:8766 (localhost).
   mcp:
     image: bobdivx/zimatools-mcp:latest
     build:
@@ -6,10 +8,8 @@ services:
       dockerfile: docker/Dockerfile.mcp
     container_name: zimatools-mcp
     restart: always
-    # Ports internes uniquement (reseau compose) — exposes via le proxy web
-    expose:
-      - "8765"
-      - "8766"
+    ports:
+      - "8484:8080"
     env_file:
       - path: .env
         required: false
@@ -39,21 +39,20 @@ services:
       dockerfile: docker/Dockerfile.web
     container_name: zimatools-web
     restart: always
-    ports:
-      - "8484:8080"
+    network_mode: "service:mcp"
+    depends_on:
+      - mcp
     environment:
       HOST: "0.0.0.0"
       PORT: "8080"
-      API_UPSTREAM: ${API_UPSTREAM:-http://mcp:8766}
-      MCP_UPSTREAM: ${MCP_UPSTREAM:-http://mcp:8765}
-    depends_on:
-      - mcp
+      API_UPSTREAM: http://127.0.0.1:8766
+      MCP_UPSTREAM: http://127.0.0.1:8765
 
 x-casaos:
   hostname: ""
   index: /
   is_uncontrolled: false
-  main: web
+  main: mcp
   port_map: "8484"
   scheme: http
   title:

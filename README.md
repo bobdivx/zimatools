@@ -28,9 +28,9 @@ zimatools/
 
 | Service | Access | Role |
 |---------|--------|------|
-| Web + proxy | **8484** (only public port) | UI, `/api`, `/health`, `/mcp` |
-| MCP (internal) | `mcp:8765` | HTTP stream (via proxy) |
-| REST (internal) | `mcp:8766` | Hono API (via proxy) |
+| Public entry | **8484** → `:8080` | UI + proxy (`/api`, `/health`, `/mcp`) |
+| MCP (localhost) | `127.0.0.1:8765` inside the shared netns | HTTP stream |
+| REST (localhost) | `127.0.0.1:8766` inside the shared netns | Hono API |
 
 ---
 
@@ -38,13 +38,14 @@ zimatools/
 
 Docker Hub images: `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
-**One public port only (`8484`).** MCP and REST stay internal (`expose`). The `web` container proxies `/mcp`, `/api`, and `/health`.
+**One public port (`8484`).** Both processes share the `mcp` network namespace (`network_mode: service:mcp` on `web`), so the proxy talks to API/MCP on `127.0.0.1` — this avoids CasaOS DNS / bridge issues that cause **502 Bad Gateway**.
 
 ### Steps
 
-1. In CasaOS → **Apps** → install a custom app (YAML).
-2. Paste the compose below **as-is**.
-3. After save, check that CasaOS did not rewrite forbidden fields (see [Port conflicts](#port-conflicts-ports-already-in-use)).
+1. Uninstall any previous ZimaTools app in CasaOS (and free port `8484`).
+2. Apps → install a custom app (YAML).
+3. Paste the compose below **as-is**.
+4. After save, verify CasaOS did **not** change `web.network_mode` away from `service:mcp`.
 
 ### Compose YAML (copy/paste)
 
@@ -53,9 +54,8 @@ services:
   mcp:
     image: bobdivx/zimatools-mcp:latest
     restart: always
-    expose:
-      - "8765"
-      - "8766"
+    ports:
+      - "8484:8080"
     environment:
       MCP_TRANSPORT: http
       MCP_HOST: "0.0.0.0"
@@ -73,21 +73,20 @@ services:
   web:
     image: bobdivx/zimatools-web:latest
     restart: always
-    ports:
-      - "8484:8080"
+    network_mode: "service:mcp"
+    depends_on:
+      - mcp
     environment:
       HOST: "0.0.0.0"
       PORT: "8080"
-      API_UPSTREAM: http://mcp:8766
-      MCP_UPSTREAM: http://mcp:8765
-    depends_on:
-      - mcp
+      API_UPSTREAM: http://127.0.0.1:8766
+      MCP_UPSTREAM: http://127.0.0.1:8765
 
 x-casaos:
   hostname: ""
   index: /
   is_uncontrolled: false
-  main: web
+  main: mcp
   port_map: "8484"
   scheme: http
   title:
@@ -106,13 +105,14 @@ Optional env on `mcp`: set `ZIMAOS_API_TOKEN` (file tools) and `ZIMAOS_SSH_PASSW
 
 ### Port conflicts (“ports already in use”)
 
-CasaOS often rewrites the YAML on save and causes the conflict. Fix these:
+CasaOS often rewrites the YAML on save. Keep these rules:
 
-| Do not allow | Why |
-|--------------|-----|
-| `ports:` on **mcp** | MCP must not publish host ports; only `web` publishes `8484` |
-| `8484` on both mcp and web | CasaOS sometimes adds `8484:8080` to mcp by mistake |
-| `network_mode: bridge` | Breaks Compose DNS (`web` cannot resolve `mcp`) |
+| Rule | Why |
+|------|-----|
+| Publish `8484:8080` **only on `mcp`** | `web` shares mcp’s network; it must not declare its own `ports` |
+| `web.network_mode` must stay `service:mcp` | If CasaOS sets `bridge`, you get **502** (`web` cannot reach API on localhost / DNS) |
+| Do not add `ports` on `web` | Duplicate `8484` → “ports already in use” |
+| Do not set `network_mode: bridge` on either service | Breaks the sidecar / DNS setup |
 
 Free the port, then reinstall:
 
@@ -122,7 +122,17 @@ docker rm -f $(docker ps -aq --filter name=zimatools) 2>/dev/null
 # In CasaOS: fully uninstall the old ZimaTools app
 ```
 
-If `8484` is still taken, change **only** the web mapping and `port_map` (e.g. `18484:8080` and `port_map: "18484"`). MCP URL becomes `http://<nas>:18484/mcp`.
+If `8484` is still taken, change **only** `mcp.ports` and `port_map` (e.g. `18484:8080` and `port_map: "18484"`). MCP URL becomes `http://<nas>:18484/mcp`.
+
+### 502 Bad Gateway
+
+Means the web proxy cannot reach the API. Almost always: CasaOS rewrote `network_mode` to `bridge`. Set `web` back to:
+
+```yaml
+network_mode: "service:mcp"
+```
+
+and upstreams to `http://127.0.0.1:8766` / `http://127.0.0.1:8765`, then recreate the app.
 
 ### Optional NVIDIA GPU
 
