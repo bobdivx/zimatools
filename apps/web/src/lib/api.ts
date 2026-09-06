@@ -1,8 +1,8 @@
 export function apiBase() {
   const env = import.meta.env.PUBLIC_API_URL;
   if (env) return env.replace(/\/$/, "");
-  if (typeof window === "undefined") return "http://127.0.0.1:8766";
-  return `${window.location.protocol}//${window.location.hostname}:8766`;
+  // Same-origin: le serveur web proxifie /api et /health vers mcp.
+  return "";
 }
 
 export function publicHost() {

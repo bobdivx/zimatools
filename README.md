@@ -26,11 +26,89 @@ zimatools/
   docker-compose.gpu.yml
 ```
 
-| Service | Port | Role |
-|---------|------|------|
+| Service | Port hote | Role |
+|---------|-----------|------|
 | MCP HTTP Stream | **8765** `/mcp` | Cursor, DevForge, agents distants |
 | REST API | **8766** `/api` | UI (GPU, Docker) |
-| Web UI | **8080** | Tableau de bord |
+| Web UI | **8484** → 8080 | Tableau de bord CasaOS |
+
+## Deploiement ZimaOS / CasaOS
+
+Images Docker Hub : `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
+
+> **Important** : 2 services (`mcp` + `web`). L'UI appelle l'API en **same-origin** (`/api`, `/health`) ; le conteneur `web` proxifie vers `mcp:8766`. Ne pas mettre `network_mode: bridge` (casse le DNS compose).
+
+1. CasaOS → **App** → Installer une app personnalisee (YAML).
+2. Coller le compose ci-dessous.
+3. Si CasaOS signale des ports occupes : desinstaller l'ancienne app ZimaTools, ou changer les ports publies (ex. `18484` / `18765` / `18766`) — l'UI restera OK grace au proxy.
+
+```yaml
+services:
+  mcp:
+    image: bobdivx/zimatools-mcp:latest
+    restart: always
+    ports:
+      - target: 8765
+        published: "8765"
+        protocol: tcp
+      - target: 8766
+        published: "8766"
+        protocol: tcp
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HOST: "0.0.0.0"
+      MCP_PORT: "8765"
+      MCP_ENDPOINT: /mcp
+      MCP_CORS_ORIGIN: "*"
+      API_PORT: "8766"
+      API_CORS_ORIGIN: "*"
+      ZIMAOS_API_BASE: http://127.0.0.1
+      ZIMAOS_API_TOKEN: ""
+      ZIMAOS_SSH_PASSWORD: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  web:
+    image: bobdivx/zimatools-web:latest
+    restart: always
+    ports:
+      - target: 8080
+        published: "8484"
+        protocol: tcp
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      API_UPSTREAM: http://mcp:8766
+    depends_on:
+      - mcp
+
+x-casaos:
+  hostname: ""
+  index: /
+  is_uncontrolled: false
+  main: web
+  port_map: "8484"
+  scheme: http
+  title:
+    custom: ZimaTools
+```
+
+Apres install :
+
+- UI : `http://<nas>:8484`
+- MCP : `http://<nas>:8765/mcp`
+- REST : `http://<nas>:8766/health`
+
+Optionnel : renseigner `ZIMAOS_API_TOKEN` (outils fichiers) et `ZIMAOS_SSH_PASSWORD` (outils Docker).
+
+GPU NVIDIA (si `nvidia-container-toolkit`) : ajouter sur le service `mcp` :
+
+```yaml
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: utility,compute
+```
 
 ## Installation locale (dev)
 
@@ -58,29 +136,12 @@ Stdio (Cursor local uniquement) :
 pnpm --filter @zimatools/mcp dev:stdio
 ```
 
-## Installation sur ZimaOS
-
-Pas de deploiement automatique dans cette version. Compose pret a copier :
-
-1. Cloner (ou copier) le depot sur le NAS.
-2. `cp .env.example .env` et renseigner les tokens.
-3. Sans GPU :
+Build local Docker (sans Hub) :
 
 ```bash
 docker compose up -d --build
+# GPU : docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
-
-4. Avec NVIDIA (nvidia-container-toolkit) :
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
-```
-
-- UI : `http://<nas>:8080`
-- MCP : `http://<nas>:8765/mcp`
-- REST : `http://<nas>:8766/health`
-
-Le socket Docker est monte (`/var/run/docker.sock`). Le runtime NVIDIA est **optionnel**.
 
 ## Endpoint MCP (HTTP)
 

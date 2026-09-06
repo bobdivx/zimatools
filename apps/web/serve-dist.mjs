@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, "dist");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
+const API_UPSTREAM = (process.env.API_UPSTREAM || "http://mcp:8766").replace(/\/$/, "");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -80,12 +81,52 @@ function resolveFile(urlPath) {
   return null;
 }
 
+function shouldProxy(pathname) {
+  return pathname === "/health" || pathname.startsWith("/api/") || pathname === "/api";
+}
+
+function proxyApi(req, res) {
+  const upstream = new URL(req.url || "/", API_UPSTREAM);
+  const headers = { ...req.headers, host: upstream.host };
+  delete headers["content-length"];
+
+  const proxyReq = http.request(
+    {
+      protocol: upstream.protocol,
+      hostname: upstream.hostname,
+      port: upstream.port || 80,
+      path: upstream.pathname + upstream.search,
+      method: req.method,
+      headers,
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+
+  proxyReq.on("error", (err) => {
+    send(res, 502, `API upstream error: ${err.message}`, {
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+  });
+
+  req.pipe(proxyReq);
+}
+
 const server = http.createServer((req, res) => {
+  const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
+
+  if (shouldProxy(url.pathname)) {
+    proxyApi(req, res);
+    return;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     send(res, 405, "Method Not Allowed");
     return;
   }
-  const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
+
   const file = resolveFile(url.pathname);
   if (!file) {
     send(res, 404, "Not found", { "Content-Type": "text/plain; charset=utf-8" });
@@ -100,5 +141,15 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log("[zimatools] static web on http://" + HOST + ":" + PORT + " (dist=" + DIST + ")");
+  console.log(
+    "[zimatools] static web on http://" +
+      HOST +
+      ":" +
+      PORT +
+      " (dist=" +
+      DIST +
+      ", api=" +
+      API_UPSTREAM +
+      ")",
+  );
 });

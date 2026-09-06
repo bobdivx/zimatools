@@ -43,6 +43,7 @@ services:
     environment:
       HOST: "0.0.0.0"
       PORT: "8080"
+      API_UPSTREAM: ${API_UPSTREAM:-http://mcp:8766}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
     depends_on:
       - mcp
