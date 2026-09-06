@@ -1,10 +1,11 @@
 services:
   mcp:
+    image: bobdivx/zimatools-mcp:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.mcp
     container_name: zimatools-mcp
-    restart: unless-stopped
+    restart: always
     ports:
       - "8765:8765"
       - "8766:8766"
@@ -31,18 +32,27 @@ services:
       retries: 5
 
   web:
+    image: bobdivx/zimatools-web:latest
     build:
       context: .
       dockerfile: docker/Dockerfile.web
     container_name: zimatools-web
-    restart: unless-stopped
+    restart: always
     ports:
-      - "8767:8080"
+      - "8484:8080"
     environment:
       HOST: "0.0.0.0"
       PORT: "8080"
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
     depends_on:
       - mcp
+
+x-casaos:
+  main: web
+  port_map: "8484"
+  scheme: http
+  index: /
+  title:
+    custom: ZimaTools
 
 # GPU NVIDIA: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
