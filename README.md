@@ -38,14 +38,23 @@ zimatools/
 
 Docker Hub images: `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
-**One public port (`8484`).** Both processes share the `mcp` network namespace (`network_mode: service:mcp` on `web`), so the proxy talks to API/MCP on `127.0.0.1` — this avoids CasaOS DNS / bridge issues that cause **502 Bad Gateway**.
+**One public port (`8484`).** `web` uses `network_mode: service:mcp` (sidecar): both share one network namespace, so the proxy reaches API/MCP on `127.0.0.1`. This avoids CasaOS DNS/`bridge` isolation that causes **502 Bad Gateway**.
 
 ### Steps
 
-1. Uninstall any previous ZimaTools app in CasaOS (and free port `8484`).
-2. Apps → install a custom app (YAML).
-3. Paste the compose below **as-is**.
-4. After save, verify CasaOS did **not** change `web.network_mode` away from `service:mcp`.
+1. Uninstall any previous ZimaTools app (free port `8484`).
+2. CasaOS → **Apps** → install a custom app.
+3. Prefer the **YAML** tab: paste the compose below **as-is**, then install.
+4. Or use the **Form** tab and match this checklist:
+
+| CasaOS field | `mcp` service | `web` service |
+|--------------|---------------|---------------|
+| Image | `bobdivx/zimatools-mcp:latest` | `bobdivx/zimatools-web:latest` |
+| Network type | `bridge` (OK for mcp) | **`service:mcp`** (required) |
+| Port mapping | **`8484` → `8080` TCP** | *(empty — no ports)* |
+| Main service / Web URL | Main = `mcp`, URL port `8484` | — |
+
+5. After install, open `http://<nas>:8484/health` — expect `{"ok":true,...}`.
 
 ### Compose YAML (copy/paste)
 
@@ -109,10 +118,10 @@ CasaOS often rewrites the YAML on save. Keep these rules:
 
 | Rule | Why |
 |------|-----|
-| Publish `8484:8080` **only on `mcp`** | `web` shares mcp’s network; it must not declare its own `ports` |
-| `web.network_mode` must stay `service:mcp` | If CasaOS sets `bridge`, you get **502** (`web` cannot reach API on localhost / DNS) |
-| Do not add `ports` on `web` | Duplicate `8484` → “ports already in use” |
-| Do not set `network_mode: bridge` on either service | Breaks the sidecar / DNS setup |
+| Publish `8484 → 8080` **only on `mcp`** | `web` shares mcp’s network; it must not declare ports |
+| `web` network type must stay **`service:mcp`** | If set to `bridge`, you get **502** |
+| Do not add a second `8484` on `web` | Duplicate publish → “ports already in use” |
+| Do not add extra `networks:` blocks CasaOS invents | Keep the sidecar simple |
 
 Free the port, then reinstall:
 
@@ -126,13 +135,14 @@ If `8484` is still taken, change **only** `mcp.ports` and `port_map` (e.g. `1848
 
 ### 502 Bad Gateway
 
-Means the web proxy cannot reach the API. Almost always: CasaOS rewrote `network_mode` to `bridge`. Set `web` back to:
+The web proxy cannot reach the API. Check the Form tab:
 
-```yaml
-network_mode: "service:mcp"
-```
+1. `web` → Network type = **`service:mcp`** (not `bridge`)
+2. `web` → no port mappings
+3. `mcp` → `8484 → 8080`
+4. Upstreams on `web`: `http://127.0.0.1:8766` and `http://127.0.0.1:8765`
 
-and upstreams to `http://127.0.0.1:8766` / `http://127.0.0.1:8765`, then recreate the app.
+Then recreate / restart the app.
 
 ### Optional NVIDIA GPU
 
