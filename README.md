@@ -1,46 +1,52 @@
 # ZimaTools
 
-Application native **ZimaOS** : serveur MCP (HTTP), interface web et **arbitre GPU** pour une VRAM exclusive.
+Native **ZimaOS** app: MCP server (HTTP), web dashboard, and **exclusive GPU lease** arbiter.
 
-Popcorn a priorite sur Ollama et les agents. Un seul lease GPU a la fois.
+Popcorn has priority over Ollama and agents. Only one GPU lease at a time.
 
-Repo : https://github.com/bobdivx/zimatools  
-Origine : [zimaos-cursor-mcp](https://github.com/bobdivx/zimaos-cursor-mcp) v0.0.2 (historique conserve).
+Repo: https://github.com/bobdivx/zimatools  
+Based on: [zimaos-cursor-mcp](https://github.com/bobdivx/zimaos-cursor-mcp) v0.0.2 (history preserved).
 
 ## Stack
 
 - Monorepo **pnpm workspaces**
-- `apps/mcp` — TypeScript, [mcp-framework](https://www.mcp-framework.com/) `0.2.x`, transport **HTTP Stream** (`/mcp`) + stdio optionnel
-- Pont REST **Hono** (`/api/*`) pour l'UI
+- `apps/mcp` — TypeScript, [mcp-framework](https://www.mcp-framework.com/) `0.2.x`, **HTTP Stream** (`/mcp`) + optional stdio
+- REST bridge **Hono** (`/api/*`) for the UI
 - `apps/web` — **Astro + Preact + Tailwind CSS + DaisyUI**
-- `docker-compose.yml` pret pour ZimaOS (docker.sock, NVIDIA optionnel)
+- Single public port via Docker Compose (web proxies MCP + API)
 
 ## Architecture
 
 ```
 zimatools/
-  apps/mcp/     serveur MCP + REST + arbitre GPU
-  apps/web/     UI Astro/Preact/DaisyUI
+  apps/mcp/     MCP server + REST + GPU arbiter
+  apps/web/     Astro/Preact/DaisyUI UI (+ reverse proxy in Docker)
   docker/       Dockerfiles
   docker-compose.yml
   docker-compose.gpu.yml
 ```
 
-| Service | Acces | Role |
-|---------|-------|------|
-| Web + proxy | **8484** (seul port public) | UI, `/api`, `/health`, `/mcp` |
-| MCP (interne) | `mcp:8765` | HTTP stream (via proxy) |
-| REST (interne) | `mcp:8766` | API Hono (via proxy) |
+| Service | Access | Role |
+|---------|--------|------|
+| Web + proxy | **8484** (only public port) | UI, `/api`, `/health`, `/mcp` |
+| MCP (internal) | `mcp:8765` | HTTP stream (via proxy) |
+| REST (internal) | `mcp:8766` | Hono API (via proxy) |
 
-## Deploiement ZimaOS / CasaOS
+---
 
-Images Docker Hub : `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
+## Deploy on ZimaOS / CasaOS
 
-> **Un seul port expose** (`8484`). MCP et REST restent internes (`expose` seulement) ; `web` proxifie `/mcp`, `/api`, `/health`.
+Docker Hub images: `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
-1. CasaOS → **App** → Installer une app personnalisee (YAML).
-2. Coller le compose ci-dessous **tel quel**.
-3. Apres install, verifier que CasaOS n'a pas reinjecte de mauvais champs (voir astuce ports).
+**One public port only (`8484`).** MCP and REST stay internal (`expose`). The `web` container proxies `/mcp`, `/api`, and `/health`.
+
+### Steps
+
+1. In CasaOS → **Apps** → install a custom app (YAML).
+2. Paste the compose below **as-is**.
+3. After save, check that CasaOS did not rewrite forbidden fields (see [Port conflicts](#port-conflicts-ports-already-in-use)).
+
+### Compose YAML (copy/paste)
 
 ```yaml
 services:
@@ -88,35 +94,39 @@ x-casaos:
     custom: ZimaTools
 ```
 
-Apres install :
+### Endpoints after install
 
-- UI : `http://<nas>:8484`
-- MCP (Cursor / DevForge) : `http://<nas>:8484/mcp`
-- REST : `http://<nas>:8484/health`
+| Use | URL |
+|-----|-----|
+| Dashboard | `http://<nas>:8484` |
+| MCP (Cursor / DevForge / agents) | `http://<nas>:8484/mcp` |
+| REST health | `http://<nas>:8484/health` |
 
-### Astuce : « il y a des ports en cours d'utilisation »
+Optional env on `mcp`: set `ZIMAOS_API_TOKEN` (file tools) and `ZIMAOS_SSH_PASSWORD` (Docker tools).
 
-CasaOS reecrit souvent le YAML a l'enregistrement et provoque le conflit. Verifier / corriger :
+### Port conflicts (“ports already in use”)
 
-| Interdit | Pourquoi |
-|----------|----------|
-| `ports:` sur le service **mcp** | MCP n'expose rien sur l'hote ; seul `web` publie `8484` |
-| `8484` declare deux fois (mcp + web) | CasaOS ajoute parfois `8484:8080` sur mcp par erreur |
-| `network_mode: bridge` | Casse le DNS compose (`web` ne resolut plus `mcp`) |
+CasaOS often rewrites the YAML on save and causes the conflict. Fix these:
 
-Liberer le port puis reinstaller :
+| Do not allow | Why |
+|--------------|-----|
+| `ports:` on **mcp** | MCP must not publish host ports; only `web` publishes `8484` |
+| `8484` on both mcp and web | CasaOS sometimes adds `8484:8080` to mcp by mistake |
+| `network_mode: bridge` | Breaks Compose DNS (`web` cannot resolve `mcp`) |
+
+Free the port, then reinstall:
 
 ```bash
 docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '8484|8765|8766'
 docker rm -f $(docker ps -aq --filter name=zimatools) 2>/dev/null
-# Dans CasaOS : desinstaller completement l'ancienne app ZimaTools
+# In CasaOS: fully uninstall the old ZimaTools app
 ```
 
-Si `8484` reste pris, change **uniquement** le mapping web + `port_map` (ex. `18484:8080` et `port_map: "18484"`). L'URL MCP devient alors `http://<nas>:18484/mcp`.
+If `8484` is still taken, change **only** the web mapping and `port_map` (e.g. `18484:8080` and `port_map: "18484"`). MCP URL becomes `http://<nas>:18484/mcp`.
 
-Optionnel : renseigner `ZIMAOS_API_TOKEN` (outils fichiers) et `ZIMAOS_SSH_PASSWORD` (outils Docker).
+### Optional NVIDIA GPU
 
-GPU NVIDIA (si `nvidia-container-toolkit`) : ajouter sur le service `mcp` :
+Requires `nvidia-container-toolkit`. Add under the `mcp` service:
 
 ```yaml
     runtime: nvidia
@@ -125,48 +135,53 @@ GPU NVIDIA (si `nvidia-container-toolkit`) : ajouter sur le service `mcp` :
       NVIDIA_DRIVER_CAPABILITIES: utility,compute
 ```
 
-## Installation locale (dev)
+---
 
-Prerequis : Node.js 20+, pnpm 10 (`corepack enable`).
+## Local development
+
+Requirements: Node.js 20+, pnpm 10 (`corepack enable`).
 
 ```bash
 git clone https://github.com/bobdivx/zimatools.git
 cd zimatools
 cp .env.example .env
-# renseigner ZIMAOS_API_BASE / ZIMAOS_API_TOKEN / SSH si besoin
+# fill ZIMAOS_API_BASE / ZIMAOS_API_TOKEN / SSH if needed
 pnpm install
 pnpm --filter @zimatools/mcp build
 ```
 
-Deux terminaux :
+Two terminals:
 
 ```bash
 pnpm dev:mcp    # MCP HTTP :8765 + REST :8766
-pnpm dev:web    # UI :4321 (proxy /api -> 8766)
+pnpm dev:web    # UI :4321 (proxies /api, /health, /mcp)
 ```
 
-Stdio (Cursor local uniquement) :
+Stdio (local Cursor only):
 
 ```bash
 pnpm --filter @zimatools/mcp dev:stdio
 ```
 
-Build local Docker (sans Hub) :
+Local Docker build (without Hub pull):
 
 ```bash
 docker compose up -d --build
-# GPU : docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+# GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
 
-## Endpoint MCP (HTTP)
+---
 
-Transport : **Streamable HTTP** (mcp-framework `http-stream`), pas seulement stdio.
+## MCP endpoint (HTTP)
 
-- URL : `http://<nas>:8484/mcp` (derriere le proxy web) ou `http://localhost:8765/mcp` en dev
-- Methodes : `POST` / `GET` / `DELETE` / `OPTIONS`
-- CORS ouvert par defaut (`MCP_CORS_ORIGIN=*`, `MCP_HOST=0.0.0.0`)
+Transport: **Streamable HTTP** (`http-stream`), not stdio-only.
 
-Exemple Cursor / DevForge (`mcp.json`) :
+- Production: `http://<nas>:8484/mcp` (through the web proxy)
+- Dev: `http://localhost:8765/mcp`
+- Methods: `POST` / `GET` / `DELETE` / `OPTIONS`
+- CORS open by default (`MCP_CORS_ORIGIN=*`, `MCP_HOST=0.0.0.0`)
+
+### Cursor / DevForge (`mcp.json`)
 
 ```json
 {
@@ -178,14 +193,14 @@ Exemple Cursor / DevForge (`mcp.json`) :
 }
 ```
 
-Stdio local (sans NAS) :
+### Local stdio (no NAS)
 
 ```json
 {
   "mcpServers": {
     "zimatools": {
       "command": "node",
-      "args": ["<chemin>/apps/mcp/dist/index.js", "--stdio"],
+      "args": ["<path>/apps/mcp/dist/index.js", "--stdio"],
       "env": {
         "ZIMAOS_API_BASE": "http://zimacube.local",
         "ZIMAOS_API_TOKEN": "..."
@@ -195,7 +210,9 @@ Stdio local (sans NAS) :
 }
 ```
 
-REST UI (Hono, memes outils GPU) :
+### REST (same GPU tools)
+
+Via the public proxy: `http://<nas>:8484/...`
 
 - `GET /health`
 - `GET /api/gpu/status`
@@ -205,59 +222,68 @@ REST UI (Hono, memes outils GPU) :
 - `POST /api/gpu/priority` `{ "client": "ollama", "priority": 50 }`
 - `GET /api/docker/containers`
 
-## Outils MCP
+---
 
-### Fichiers ZimaOS (existants, via API)
+## MCP tools
 
-`read_file_from_zimaos`, list / write / edit / search / mkdir / stats — voir `apps/mcp/src/tools/`.
+### ZimaOS files (API)
 
-### Docker (existants, via SSH)
+`read_file_from_zimaos`, list / write / edit / search / mkdir / stats — see `apps/mcp/src/tools/`.
+
+### Docker (SSH or docker.sock)
 
 `list_docker_containers_zimaos`, start / stop / restart / logs / info.
 
-### GPU (v0 — file en memoire + nvidia-smi)
+### GPU (in-memory queue + nvidia-smi)
 
-| Outil | Role |
-|-------|------|
-| `gpu.status` | nvidia-smi + lease + file. Si `nvidia-smi` absent : **stub**. |
-| `gpu.acquire` | Lease exclusif. Priorite plus haute **preempte**. |
-| `gpu.release` | Relache et promeut la file. |
-| `gpu.queue_list` | Lease courant + file. |
-| `gpu.set_priority` | Priorite client (defaut popcorn=100, ollama=50, agents=25). |
+| Tool | Role |
+|------|------|
+| `gpu.status` | nvidia-smi + lease + queue. If `nvidia-smi` missing: **stub**. |
+| `gpu.acquire` | Exclusive lease. Higher priority **preempts**. |
+| `gpu.release` | Release and promote the queue. |
+| `gpu.queue_list` | Current lease + queue. |
+| `gpu.set_priority` | Client priority (default popcorn=100, ollama=50, agents=25). |
 
-Modele : **un seul holder**. Popcorn vole le GPU a Ollama / agents ; le detenteur precedent est refile.
+Model: **one holder**. Popcorn steals the GPU from Ollama / agents; the previous holder is re-queued.
 
-**Stub / limites v0**
+**v0 limits**
 
-- Queue et priorites **en memoire** (perdues au restart).
-- `nvidia-smi` parse CSV ; sinon GPU factice `stub-gpu`.
-- Pas encore d'arret/redemarrage reel d'Ollama ou de containers GPU.
-- Liste Docker UI : SSH si configure, sinon placeholder.
+- Queue and priorities are **in-memory** (lost on restart).
+- `nvidia-smi` CSV parse; otherwise fake GPU `stub-gpu`.
+- No real stop/restart of Ollama or GPU containers yet.
+- Docker UI list: SSH if configured, otherwise placeholder.
 
-## Variables d'environnement
+---
 
-Voir `.env.example`.
+## Environment variables
 
-| Variable | Defaut | Role |
-|----------|--------|------|
-| `MCP_TRANSPORT` | `http` | `http` ou `stdio` |
-| `MCP_PORT` | `8765` | MCP Streamable HTTP |
-| `MCP_HOST` | `0.0.0.0` | Bind NAS |
-| `MCP_ENDPOINT` | `/mcp` | Chemin MCP |
-| `API_PORT` | `8766` | REST Hono |
-| `PUBLIC_API_URL` | hostname:8766 | URL API vue par le navigateur |
-| `ZIMAOS_API_BASE` / `TOKEN` | — | Outils fichiers |
-| `ZIMAOS_SSH_*` | — | Outils Docker |
+See `.env.example`.
 
-## Developpement
+| Variable | Default | Role |
+|----------|---------|------|
+| `MCP_TRANSPORT` | `http` | `http` or `stdio` |
+| `MCP_PORT` | `8765` | Internal MCP Streamable HTTP |
+| `MCP_HOST` | `0.0.0.0` | Bind address |
+| `MCP_ENDPOINT` | `/mcp` | MCP path |
+| `API_PORT` | `8766` | Internal REST (Hono) |
+| `API_UPSTREAM` | `http://mcp:8766` | Web → API proxy target |
+| `MCP_UPSTREAM` | `http://mcp:8765` | Web → MCP proxy target |
+| `PUBLIC_API_URL` | _(empty)_ | Browser API base; empty = same-origin |
+| `PUBLIC_BASE_URL` | _(empty)_ | Public MCP URL override |
+| `ZIMAOS_API_BASE` / `TOKEN` | — | File tools |
+| `ZIMAOS_SSH_*` | — | Docker tools over SSH |
+
+---
+
+## Build
 
 ```bash
-pnpm build          # mcp + web
+pnpm build
 pnpm --filter @zimatools/web build
 ```
 
-L'integration Home Assistant historique est dans `legacy/ha/`.
+Legacy Home Assistant integration: `legacy/ha/`.
 
-## Licence
+## License
 
-A definir. Issues : https://github.com/bobdivx/zimatools/issues
+TBD. Issues: https://github.com/bobdivx/zimatools/issues
