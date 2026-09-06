@@ -82,20 +82,29 @@ function resolveFile(urlPath) {
   return null;
 }
 
-function isBrowserDocumentRequest(req) {
+function shouldProxyMcp(req, pathname) {
+  if (pathname !== "/mcp" && !pathname.startsWith("/mcp/")) return false;
   const method = (req.method || "GET").toUpperCase();
-  if (method !== "GET" && method !== "HEAD") return false;
-  const accept = String(req.headers.accept || "");
-  return accept.includes("text/html");
+  // Streamable HTTP: POST/DELETE/OPTIONS always go to the MCP server.
+  if (method === "POST" || method === "DELETE" || method === "OPTIONS") return true;
+  if (method === "GET" || method === "HEAD") {
+    const accept = String(req.headers.accept || "");
+    const session = req.headers["mcp-session-id"] || req.headers["Mcp-Session-Id"];
+    if (session) return true;
+    if (accept.includes("text/event-stream")) return true;
+    // Prefer the HTML setup page for browsers / plain GET.
+    if (accept.includes("text/html")) return false;
+    if (accept.includes("application/json") && !accept.includes("text/html")) return true;
+    return false;
+  }
+  return true;
 }
 
 function proxyTarget(pathname, req) {
   if (pathname === "/health" || pathname === "/api" || pathname.startsWith("/api/")) {
     return API_UPSTREAM;
   }
-  if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
-    // Same path: HTML docs page for browsers, Streamable HTTP for MCP clients.
-    if (isBrowserDocumentRequest(req)) return null;
+  if (shouldProxyMcp(req, pathname)) {
     return MCP_UPSTREAM;
   }
   return null;
