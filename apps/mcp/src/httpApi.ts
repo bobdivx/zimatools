@@ -7,7 +7,7 @@ import { listApps, listContainersLegacy } from "./lib/zimaApps.js";
 import {
   MCP_CATEGORIES,
   MCP_VERSION,
-  mcpUrlForHost,
+  mcpPublicUrl,
   probeMcpHttp,
 } from "./lib/mcpCatalog.js";
 
@@ -37,12 +37,13 @@ function healthPayload() {
   };
 }
 
-async function mcpStatusPayload(hostname: string) {
+async function mcpStatusPayload(c: { req: { header: (name: string) => string | undefined } }) {
   const mcpPort = Number(process.env.MCP_PORT || 8765);
   const endpoint = process.env.MCP_ENDPOINT || "/mcp";
   const apiPort = Number(process.env.API_PORT || 8766);
   const probe = await probeMcpHttp(mcpPort, endpoint);
-  const url = mcpUrlForHost(hostname, mcpPort, endpoint);
+  const hostname = requestHostname(c);
+  const url = mcpPublicUrl(c, endpoint, hostname, mcpPort);
   return {
     ok: true,
     service: "zimatools",
@@ -52,6 +53,7 @@ async function mcpStatusPayload(hostname: string) {
       port: apiPort,
       path: "/health",
       reachable: true,
+      publicPath: "/health",
     },
     mcp: {
       transport: "http-stream",
@@ -133,8 +135,8 @@ export function startHttpApi(port: number) {
 
   app.get("/health", (c) => c.json(healthPayload()));
 
-  app.get("/api/mcp", async (c) => c.json(await mcpStatusPayload(requestHostname(c))));
-  app.get("/api/mcp/tools", async (c) => c.json(await mcpStatusPayload(requestHostname(c))));
+  app.get("/api/mcp", async (c) => c.json(await mcpStatusPayload(c)));
+  app.get("/api/mcp/tools", async (c) => c.json(await mcpStatusPayload(c)));
 
   app.get("/api/gpu/status", async (c) => c.json(await gpuArbiter.status()));
 

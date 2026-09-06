@@ -65,7 +65,9 @@ export default function McpPanel() {
   }, []);
 
   const host = publicHost();
-  const mcpUrl = data?.mcp?.url?.replace("127.0.0.1", host) || `http://${host}:8765/mcp`;
+  const mcpUrl =
+    data?.mcp?.url?.replace("127.0.0.1", host) ||
+    (typeof window !== "undefined" ? `${window.location.origin}/mcp` : `http://${host}/mcp`);
   const httpConfig = JSON.stringify(
     { mcpServers: { zimatools: { url: mcpUrl } } },
     null,
@@ -116,8 +118,8 @@ export default function McpPanel() {
           </button>
         </div>
         <div class="mt-5 grid gap-4 min-w-0 md:grid-cols-2">
-          <HealthDonut ok={restOk} label={`REST :${data?.rest?.port || 8766}/health`} />
-          <HealthDonut ok={mcpOk} label={`HTTP stream :${data?.mcp?.port || 8765}/mcp`} />
+          <HealthDonut ok={restOk} label="REST /health" />
+          <HealthDonut ok={mcpOk} label="HTTP stream /mcp" />
         </div>
         <p class="mt-4 font-mono text-sm text-secondary break-all">{mcpUrl}</p>
       </div>

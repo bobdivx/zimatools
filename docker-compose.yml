@@ -6,9 +6,10 @@ services:
       dockerfile: docker/Dockerfile.mcp
     container_name: zimatools-mcp
     restart: always
-    ports:
-      - "8765:8765"
-      - "8766:8766"
+    # Ports internes uniquement (reseau compose) — exposes via le proxy web
+    expose:
+      - "8765"
+      - "8766"
     env_file:
       - path: .env
         required: false
@@ -44,7 +45,7 @@ services:
       HOST: "0.0.0.0"
       PORT: "8080"
       API_UPSTREAM: ${API_UPSTREAM:-http://mcp:8766}
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+      MCP_UPSTREAM: ${MCP_UPSTREAM:-http://mcp:8765}
     depends_on:
       - mcp
 

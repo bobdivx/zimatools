@@ -8,6 +8,7 @@ const DIST = path.resolve(__dirname, "dist");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
 const API_UPSTREAM = (process.env.API_UPSTREAM || "http://mcp:8766").replace(/\/$/, "");
+const MCP_UPSTREAM = (process.env.MCP_UPSTREAM || "http://mcp:8765").replace(/\/$/, "");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -81,12 +82,18 @@ function resolveFile(urlPath) {
   return null;
 }
 
-function shouldProxy(pathname) {
-  return pathname === "/health" || pathname.startsWith("/api/") || pathname === "/api";
+function proxyTarget(pathname) {
+  if (pathname === "/health" || pathname === "/api" || pathname.startsWith("/api/")) {
+    return API_UPSTREAM;
+  }
+  if (pathname === "/mcp" || pathname.startsWith("/mcp/")) {
+    return MCP_UPSTREAM;
+  }
+  return null;
 }
 
-function proxyApi(req, res) {
-  const upstream = new URL(req.url || "/", API_UPSTREAM);
+function proxyRequest(req, res, upstreamBase) {
+  const upstream = new URL(req.url || "/", upstreamBase);
   const headers = { ...req.headers, host: upstream.host };
   delete headers["content-length"];
 
@@ -94,7 +101,7 @@ function proxyApi(req, res) {
     {
       protocol: upstream.protocol,
       hostname: upstream.hostname,
-      port: upstream.port || 80,
+      port: upstream.port || (upstream.protocol === "https:" ? 443 : 80),
       path: upstream.pathname + upstream.search,
       method: req.method,
       headers,
@@ -106,7 +113,7 @@ function proxyApi(req, res) {
   );
 
   proxyReq.on("error", (err) => {
-    send(res, 502, `API upstream error: ${err.message}`, {
+    send(res, 502, `Upstream error (${upstreamBase}): ${err.message}`, {
       "Content-Type": "text/plain; charset=utf-8",
     });
   });
@@ -116,9 +123,10 @@ function proxyApi(req, res) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || "/", "http://" + (req.headers.host || "localhost"));
+  const upstream = proxyTarget(url.pathname);
 
-  if (shouldProxy(url.pathname)) {
-    proxyApi(req, res);
+  if (upstream) {
+    proxyRequest(req, res, upstream);
     return;
   }
 
@@ -142,14 +150,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(
-    "[zimatools] static web on http://" +
-      HOST +
-      ":" +
-      PORT +
-      " (dist=" +
-      DIST +
-      ", api=" +
-      API_UPSTREAM +
-      ")",
+    `[zimatools] static web on http://${HOST}:${PORT} (dist=${DIST}, api=${API_UPSTREAM}, mcp=${MCP_UPSTREAM})`,
   );
 });

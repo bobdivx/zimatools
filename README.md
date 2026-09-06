@@ -26,34 +26,30 @@ zimatools/
   docker-compose.gpu.yml
 ```
 
-| Service | Port hote | Role |
-|---------|-----------|------|
-| MCP HTTP Stream | **8765** `/mcp` | Cursor, DevForge, agents distants |
-| REST API | **8766** `/api` | UI (GPU, Docker) |
-| Web UI | **8484** → 8080 | Tableau de bord CasaOS |
+| Service | Acces | Role |
+|---------|-------|------|
+| Web + proxy | **8484** (seul port public) | UI, `/api`, `/health`, `/mcp` |
+| MCP (interne) | `mcp:8765` | HTTP stream (via proxy) |
+| REST (interne) | `mcp:8766` | API Hono (via proxy) |
 
 ## Deploiement ZimaOS / CasaOS
 
 Images Docker Hub : `bobdivx/zimatools-mcp` + `bobdivx/zimatools-web`.
 
-> **Important** : 2 services (`mcp` + `web`). L'UI appelle l'API en **same-origin** (`/api`, `/health`) ; le conteneur `web` proxifie vers `mcp:8766`. Ne pas mettre `network_mode: bridge` (casse le DNS compose).
+> **Un seul port expose** (`8484`). MCP et REST ecoutent en interne (`0.0.0.0:8765` / `8766`) ; le conteneur `web` proxifie `/mcp`, `/api` et `/health`. Ne pas mettre `network_mode: bridge`.
 
 1. CasaOS → **App** → Installer une app personnalisee (YAML).
 2. Coller le compose ci-dessous.
-3. Si CasaOS signale des ports occupes : desinstaller l'ancienne app ZimaTools, ou changer les ports publies (ex. `18484` / `18765` / `18766`) — l'UI restera OK grace au proxy.
+3. Si le port `8484` est pris : change uniquement `published` / `port_map` (ex. `18484`).
 
 ```yaml
 services:
   mcp:
     image: bobdivx/zimatools-mcp:latest
     restart: always
-    ports:
-      - target: 8765
-        published: "8765"
-        protocol: tcp
-      - target: 8766
-        published: "8766"
-        protocol: tcp
+    expose:
+      - "8765"
+      - "8766"
     environment:
       MCP_TRANSPORT: http
       MCP_HOST: "0.0.0.0"
@@ -79,6 +75,7 @@ services:
       HOST: "0.0.0.0"
       PORT: "8080"
       API_UPSTREAM: http://mcp:8766
+      MCP_UPSTREAM: http://mcp:8765
     depends_on:
       - mcp
 
@@ -96,8 +93,8 @@ x-casaos:
 Apres install :
 
 - UI : `http://<nas>:8484`
-- MCP : `http://<nas>:8765/mcp`
-- REST : `http://<nas>:8766/health`
+- MCP (Cursor / DevForge) : `http://<nas>:8484/mcp`
+- REST : `http://<nas>:8484/health`
 
 Optionnel : renseigner `ZIMAOS_API_TOKEN` (outils fichiers) et `ZIMAOS_SSH_PASSWORD` (outils Docker).
 
@@ -147,7 +144,7 @@ docker compose up -d --build
 
 Transport : **Streamable HTTP** (mcp-framework `http-stream`), pas seulement stdio.
 
-- URL : `http://<nas-ou-localhost>:8765/mcp`
+- URL : `http://<nas>:8484/mcp` (derriere le proxy web) ou `http://localhost:8765/mcp` en dev
 - Methodes : `POST` / `GET` / `DELETE` / `OPTIONS`
 - CORS ouvert par defaut (`MCP_CORS_ORIGIN=*`, `MCP_HOST=0.0.0.0`)
 
@@ -157,7 +154,7 @@ Exemple Cursor / DevForge (`mcp.json`) :
 {
   "mcpServers": {
     "zimatools": {
-      "url": "http://zimacube.local:8765/mcp"
+      "url": "http://zimacube.local:8484/mcp"
     }
   }
 }

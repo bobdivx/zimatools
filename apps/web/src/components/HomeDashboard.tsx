@@ -71,7 +71,7 @@ export default function HomeDashboard() {
           <div class="zima-kicker">MCP</div>
           <p class="text-2xl font-semibold mt-2">{mcpUp ? "En ligne" : "Hors ligne"}</p>
           <p class="text-sm opacity-60 mt-1">
-            REST :8766 {health?.ok ? "OK" : "—"} · stream :8765/mcp{" "}
+            REST /health {health?.ok ? "OK" : "—"} · stream /mcp{" "}
             {mcp?.mcp?.reachable ? "up" : mcp ? "down" : "…"}
           </p>
         </div>

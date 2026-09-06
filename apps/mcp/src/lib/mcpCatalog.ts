@@ -162,7 +162,48 @@ export const MCP_CATEGORIES: McpToolCategory[] = [
 
 export function mcpUrlForHost(hostname: string, port: number, endpoint: string): string {
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const publicBase = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  if (publicBase) return `${publicBase}${path}`;
+  // Port 80/443 → pas de :port dans l'URL publique
+  if (port === 80) return `http://${hostname}${path}`;
+  if (port === 443) return `https://${hostname}${path}`;
   return `http://${hostname}:${port}${path}`;
+}
+
+/** URL MCP publique : Origin du navigateur (derriere proxy web) ou PUBLIC_BASE_URL. */
+export function mcpPublicUrl(
+  c: { req: { header: (name: string) => string | undefined } },
+  endpoint: string,
+  fallbackHostname: string,
+  fallbackPort: number,
+): string {
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const publicBase = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  if (publicBase) return `${publicBase}${path}`;
+
+  const origin = c.req.header("origin") || "";
+  if (origin) {
+    try {
+      return `${new URL(origin).origin}${path}`;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const referer = c.req.header("referer") || "";
+  if (referer) {
+    try {
+      return `${new URL(referer).origin}${path}`;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const xfProto = (c.req.header("x-forwarded-proto") || "http").split(",")[0].trim();
+  const xfHost = (c.req.header("x-forwarded-host") || c.req.header("host") || "").split(",")[0].trim();
+  if (xfHost) return `${xfProto}://${xfHost}${path}`;
+
+  return mcpUrlForHost(fallbackHostname, fallbackPort, endpoint);
 }
 
 export async function probeMcpHttp(port: number, endpoint: string): Promise<{ reachable: boolean; status?: number; error?: string }> {
