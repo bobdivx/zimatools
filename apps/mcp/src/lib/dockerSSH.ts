@@ -1,7 +1,22 @@
 import { executeSSHCommand, getSSHConfig } from "./sshClient.js";
+import { dockerSockAvailable, dockerSockRequest } from "./dockerSock.js";
+
+async function viaSock(
+  method: string,
+  apiPath: string,
+  timeoutMs = 60_000,
+): Promise<boolean> {
+  if (!(await dockerSockAvailable())) return false;
+  const { status, body } = await dockerSockRequest(method, apiPath, timeoutMs);
+  // 204/304 = ok for start/stop; 304 = already started
+  if (status >= 400) {
+    throw new Error(`Docker API ${status}: ${body.slice(0, 240)}`);
+  }
+  return true;
+}
 
 /**
- * API Docker utilisant SSH pour exécuter des commandes Docker directement
+ * API Docker : préfère docker.sock (monté sur ZimaOS), fallback SSH si besoin.
  */
 export const DockerSSH = {
   /**
@@ -97,6 +112,21 @@ export const DockerSSH = {
    * Démarre un conteneur Docker
    */
   async startContainer(containerId: string): Promise<void> {
+    try {
+      if (await viaSock("POST", `/containers/${encodeURIComponent(containerId)}/start`)) {
+        return;
+      }
+    } catch (e: any) {
+      // 304 = already started
+      if (String(e?.message || e).includes("Docker API 304")) return;
+      // Fall through to SSH if sock path failed for other reasons when SSH is configured
+      try {
+        getSSHConfig();
+      } catch {
+        throw e;
+      }
+    }
+
     const config = getSSHConfig();
     const command = `docker start ${containerId}`;
     
@@ -104,7 +134,6 @@ export const DockerSSH = {
       let result = await executeSSHCommand(command, config);
       
       if (result.code !== 0 || result.stderr) {
-        // Essayer avec sudo
         const sudoCommand = `sudo -n docker start ${containerId}`;
         result = await executeSSHCommand(sudoCommand, config);
       }
@@ -121,6 +150,19 @@ export const DockerSSH = {
    * Arrête un conteneur Docker
    */
   async stopContainer(containerId: string): Promise<void> {
+    try {
+      if (await viaSock("POST", `/containers/${encodeURIComponent(containerId)}/stop?t=20`)) {
+        return;
+      }
+    } catch (e: any) {
+      if (String(e?.message || e).includes("Docker API 304")) return;
+      try {
+        getSSHConfig();
+      } catch {
+        throw e;
+      }
+    }
+
     const config = getSSHConfig();
     const command = `docker stop ${containerId}`;
     
@@ -128,7 +170,6 @@ export const DockerSSH = {
       let result = await executeSSHCommand(command, config);
       
       if (result.code !== 0 || result.stderr) {
-        // Essayer avec sudo
         const sudoCommand = `sudo -n docker stop ${containerId}`;
         result = await executeSSHCommand(sudoCommand, config);
       }
@@ -145,6 +186,18 @@ export const DockerSSH = {
    * Redémarre un conteneur Docker
    */
   async restartContainer(containerId: string): Promise<void> {
+    try {
+      if (await viaSock("POST", `/containers/${encodeURIComponent(containerId)}/restart?t=20`)) {
+        return;
+      }
+    } catch (e: any) {
+      try {
+        getSSHConfig();
+      } catch {
+        throw e;
+      }
+    }
+
     const config = getSSHConfig();
     const command = `docker restart ${containerId}`;
     
@@ -152,7 +205,6 @@ export const DockerSSH = {
       let result = await executeSSHCommand(command, config);
       
       if (result.code !== 0 || result.stderr) {
-        // Essayer avec sudo
         const sudoCommand = `sudo -n docker restart ${containerId}`;
         result = await executeSSHCommand(sudoCommand, config);
       }

@@ -411,12 +411,30 @@ class ImageWatchdog {
             );
             const newImageId = pulled.Id;
             if (!newImageId || newImageId === imageIdBefore) {
-              results.push({
-                name,
-                image: imageRef,
-                status: "unchanged",
-                at: new Date().toISOString(),
-              });
+              if (!before.State?.Running) {
+                const { status, body } = await dockerSockRequest(
+                  "POST",
+                  `/containers/${encodeURIComponent(before.Id)}/start`,
+                  60_000,
+                );
+                if (status >= 400 && status !== 304) {
+                  throw new Error(`start failed: ${body.slice(0, 200)}`);
+                }
+                results.push({
+                  name,
+                  image: imageRef,
+                  status: "updated",
+                  message: "started (was stopped, image unchanged)",
+                  at: new Date().toISOString(),
+                });
+              } else {
+                results.push({
+                  name,
+                  image: imageRef,
+                  status: "unchanged",
+                  at: new Date().toISOString(),
+                });
+              }
               continue;
             }
 

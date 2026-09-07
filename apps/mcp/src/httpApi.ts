@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { DEFAULT_GPU_WAIT_MS, gpuArbiter, type GpuEventName, type GpuEventPayload } from "./lib/gpuArbiter.js";
 import { listApps, listContainersLegacy } from "./lib/zimaApps.js";
+import { DockerSSH } from "./lib/dockerSSH.js";
 import { imageWatchdog, verifyWebhookSecret } from "./lib/imageWatchdog.js";
 import {
   MCP_CATEGORIES,
@@ -316,6 +317,36 @@ export function startHttpApi(port: number) {
   app.get("/api/docker/containers", async (c) => {
     const listed = await listContainersLegacy();
     return c.json(listed);
+  });
+
+  app.post("/api/docker/containers/:id/start", async (c) => {
+    const id = c.req.param("id");
+    try {
+      await DockerSSH.startContainer(id);
+      return c.json({ ok: true, action: "start", id });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
+  app.post("/api/docker/containers/:id/stop", async (c) => {
+    const id = c.req.param("id");
+    try {
+      await DockerSSH.stopContainer(id);
+      return c.json({ ok: true, action: "stop", id });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
+  app.post("/api/docker/containers/:id/restart", async (c) => {
+    const id = c.req.param("id");
+    try {
+      await DockerSSH.restartContainer(id);
+      return c.json({ ok: true, action: "restart", id });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
   });
 
   void imageWatchdog.status();
