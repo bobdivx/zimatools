@@ -15,6 +15,18 @@ async function viaSock(
   return true;
 }
 
+async function removeViaSock(containerId: string, force = true): Promise<void> {
+  const qs = force ? "?force=true&v=false" : "?v=false";
+  const { status, body } = await dockerSockRequest(
+    "DELETE",
+    `/containers/${encodeURIComponent(containerId)}${qs}`,
+    30_000,
+  );
+  if (status >= 400 && status !== 404) {
+    throw new Error(`Docker API ${status}: ${body.slice(0, 240)}`);
+  }
+}
+
 /**
  * API Docker : préfère docker.sock (monté sur ZimaOS), fallback SSH si besoin.
  */
@@ -214,6 +226,50 @@ export const DockerSSH = {
       }
     } catch (error: any) {
       throw new Error(`Failed to restart container: ${error.message}`);
+    }
+  },
+
+  /**
+   * Supprime un conteneur (force par défaut).
+   */
+  async removeContainer(containerId: string, force = true): Promise<void> {
+    try {
+      if (await dockerSockAvailable()) {
+        await removeViaSock(containerId, force);
+        return;
+      }
+    } catch (e: any) {
+      try {
+        getSSHConfig();
+      } catch {
+        throw e;
+      }
+    }
+
+    const config = getSSHConfig();
+    const command = force ? `docker rm -f ${containerId}` : `docker rm ${containerId}`;
+    let result = await executeSSHCommand(command, config);
+    if (result.code !== 0) {
+      result = await executeSSHCommand(`sudo -n ${command}`, config);
+    }
+    if (result.code !== 0) {
+      throw new Error(result.stderr || "Failed to remove container");
+    }
+  },
+
+  /**
+   * Start ; si le port host est déjà pris, force-remove le conteneur (CasaOS le recrée au Start UI).
+   * Retourne un message d'action pour l'appelant.
+   */
+  async startContainerRecoverPort(containerId: string): Promise<string> {
+    try {
+      await this.startContainer(containerId);
+      return `Container ${containerId} started`;
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      if (!/port is already allocated/i.test(msg)) throw e;
+      await this.removeContainer(containerId, true);
+      return `Container ${containerId} removed (port conflict). Recreate/Start the app from ZimaOS UI.`;
     }
   },
 

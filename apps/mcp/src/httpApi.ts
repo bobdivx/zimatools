@@ -349,6 +349,26 @@ export function startHttpApi(port: number) {
     }
   });
 
+  app.delete("/api/docker/containers/:id", async (c) => {
+    const id = c.req.param("id");
+    try {
+      await DockerSSH.removeContainer(id, true);
+      return c.json({ ok: true, action: "remove", id });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
+  app.post("/api/docker/containers/:id/start-recover", async (c) => {
+    const id = c.req.param("id");
+    try {
+      const message = await DockerSSH.startContainerRecoverPort(id);
+      return c.json({ ok: true, action: "start-recover", id, message });
+    } catch (e: any) {
+      return c.json({ ok: false, error: e?.message || String(e) }, 500);
+    }
+  });
+
   void imageWatchdog.status();
 
   serve({ fetch: app.fetch, port, hostname: process.env.API_HOST || "0.0.0.0" }, (info) => {
