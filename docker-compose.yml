@@ -26,6 +26,9 @@ services:
       ZIMAOS_SSH_PASSWORD: ${ZIMAOS_SSH_PASSWORD:-}
       IMAGE_WEBHOOK_SECRET: ${IMAGE_WEBHOOK_SECRET:-}
       ZIMATOOLS_DATA_DIR: /data
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      ZIMATOOLS_ADMIN_PASSWORD: ${ZIMATOOLS_ADMIN_PASSWORD:-}
+      ZIMATOOLS_MCP_TOKEN: ${ZIMATOOLS_MCP_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - zimatools-data:/data

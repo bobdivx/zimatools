@@ -85,6 +85,12 @@ services:
       ZIMAOS_API_BASE: http://127.0.0.1
       ZIMAOS_API_TOKEN: ""
       ZIMAOS_SSH_PASSWORD: ""
+      # Issuer OAuth public (obligatoire derrière un proxy / Cloudflare)
+      PUBLIC_BASE_URL: https://zimatools.jeser.app
+      # Mot de passe de la page de consentement — pas un jeton MCP
+      ZIMATOOLS_ADMIN_PASSWORD: ""
+      # Optionnel : Bearer statique pour scripts et Cursor
+      ZIMATOOLS_MCP_TOKEN: ""
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -204,6 +210,40 @@ docker compose up -d --build
 
 ---
 
+## Connecteur OAuth (Grok)
+
+Le MCP public exige un Bearer. Sans jeton, `POST /mcp` répond **401** avec
+`WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"`.
+
+Même forme que Grok Puck et DevForge : OAuth 2.1, PKCE S256 obligatoire, enregistrement dynamique
+`POST /oauth/register`, consentement, jeton 1 h, refresh 90 jours avec rotation, révocation
+`POST /oauth/revoke`. Le client mobile Grok (`client_id` `https://grok.com`) est accepté sans
+enregistrement : la `redirect_uri` doit être sur `https://grok.com`.
+
+Le consentement est un **mot de passe admin** (`ZIMATOOLS_ADMIN_PASSWORD`), pas Pocket ID ni un
+compte ZimaOS. Pocket ID (`https://id.jeser.app`) demanderait un client OIDC pré-créé (id, secret,
+redirect) sur l'IdP : une dépendance de plus pour un NAS auto-hébergé. Le mot de passe reste dans
+l'env du serveur et n'est jamais un jeton d'accès MCP.
+
+Les jetons OAuth ne sont stockés qu'en empreinte SHA-256 (`oauth.json` dans `ZIMATOOLS_DATA_DIR`).
+Liste et révocation : `https://<hôte>/oauth/apps`.
+
+`ZIMATOOLS_MCP_TOKEN`, s'il est défini, est un Bearer de secours pour l'automatisation existante
+(Cursor, scripts). Il ne passe pas par le consentement et ne tourne pas.
+
+```json
+{
+  "mcpServers": {
+    "zimatools": {
+      "url": "https://zimatools.jeser.app/mcp",
+      "headers": { "Authorization": "Bearer <ZIMATOOLS_MCP_TOKEN>" }
+    }
+  }
+}
+```
+
+Grok Bot : Connecteurs → personnalisé → URL `https://zimatools.jeser.app/mcp` seulement.
+
 ## MCP endpoint (HTTP)
 
 Transport: **Streamable HTTP** (`http-stream`), not stdio-only.
@@ -311,7 +351,10 @@ See `.env.example`.
 | `API_UPSTREAM` | `http://mcp:8766` | Web → API proxy target |
 | `MCP_UPSTREAM` | `http://mcp:8765` | Web → MCP proxy target |
 | `PUBLIC_API_URL` | _(empty)_ | Browser API base; empty = same-origin |
-| `PUBLIC_BASE_URL` | _(empty)_ | Public MCP URL override |
+| `PUBLIC_BASE_URL` | _(empty)_ | Issuer OAuth et URL publique (`https://zimatools.jeser.app`). Obligatoire derrière un proxy. |
+| `ZIMATOOLS_ADMIN_PASSWORD` | _(empty)_ | Mot de passe de la page de consentement OAuth. Sans lui, aucun connecteur ne peut être autorisé. |
+| `ZIMATOOLS_MCP_TOKEN` | _(empty)_ | Bearer statique optionnel (automatisation). Ne remplace pas le consentement. |
+| `MCP_INTERNAL_PORT` | `8767` | MCP mcp-framework, loopback seulement. Le port public est le connecteur. |
 | `ZIMAOS_API_BASE` / `TOKEN` | — | File tools |
 | `ZIMAOS_SSH_*` | — | Docker tools over SSH |
 

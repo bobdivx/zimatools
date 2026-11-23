@@ -65,7 +65,16 @@ async function mcpStatusPayload(c: { req: { header: (name: string) => string | u
       url,
       reachable: probe.reachable,
       status: probe.status,
+      authRequired: probe.authRequired,
       error: probe.error,
+    },
+    oauth: {
+      required: true,
+      scope: "zimatools",
+      publicBaseUrl: (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "") || null,
+      adminConfigured: Boolean(process.env.ZIMATOOLS_ADMIN_PASSWORD?.trim()),
+      staticTokenConfigured: Boolean(process.env.ZIMATOOLS_MCP_TOKEN?.trim()),
+      appsPath: "/oauth/apps",
     },
     stdio: {
       command: "node",

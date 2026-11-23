@@ -5,11 +5,6 @@ export function apiBase() {
   return "";
 }
 
-export function publicHost() {
-  if (typeof window === "undefined") return "127.0.0.1";
-  return window.location.hostname;
-}
-
 export async function jsonFetch(path: string, init?: RequestInit) {
   const res = await fetch(`${apiBase()}${path}`, {
     ...init,

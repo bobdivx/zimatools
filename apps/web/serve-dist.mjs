@@ -100,11 +100,25 @@ function shouldProxyMcp(req, pathname) {
   return true;
 }
 
+function isOauthPath(pathname) {
+  if (pathname === "/.well-known" || pathname.startsWith("/.well-known/")) return true;
+  if (pathname === "/oauth" || pathname.startsWith("/oauth/")) return true;
+  if (pathname === "/icons" || pathname.startsWith("/icons/")) return true;
+  return (
+    pathname === "/logo.png" ||
+    pathname === "/logo.svg" ||
+    pathname === "/icon.png" ||
+    pathname === "/favicon.ico" ||
+    pathname === "/favicon.png" ||
+    pathname === "/apple-touch-icon.png"
+  );
+}
+
 function proxyTarget(pathname, req) {
   if (pathname === "/health" || pathname === "/api" || pathname.startsWith("/api/")) {
     return API_UPSTREAM;
   }
-  if (shouldProxyMcp(req, pathname)) {
+  if (isOauthPath(pathname) || shouldProxyMcp(req, pathname)) {
     return MCP_UPSTREAM;
   }
   return null;
@@ -112,7 +126,14 @@ function proxyTarget(pathname, req) {
 
 function proxyRequest(req, res, upstreamBase) {
   const upstream = new URL(req.url || "/", upstreamBase);
-  const headers = { ...req.headers, host: upstream.host };
+  const headers = { ...req.headers };
+  if (!headers["x-forwarded-host"] && req.headers.host) {
+    headers["x-forwarded-host"] = req.headers.host;
+  }
+  if (!headers["x-forwarded-proto"]) {
+    headers["x-forwarded-proto"] = req.socket?.encrypted ? "https" : "http";
+  }
+  headers.host = upstream.host;
   delete headers["content-length"];
 
   const proxyReq = http.request(

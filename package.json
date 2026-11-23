@@ -9,7 +9,8 @@
     "dev:mcp": "pnpm --filter @zimatools/mcp dev",
     "dev:web": "pnpm --filter @zimatools/web dev",
     "start:mcp": "pnpm --filter @zimatools/mcp start",
-    "start:web": "pnpm --filter @zimatools/web start"
+    "start:web": "pnpm --filter @zimatools/web start",
+    "test": "pnpm --filter @zimatools/mcp test"
   },
   "engines": {
     "node": ">=20"

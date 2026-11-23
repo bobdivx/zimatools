@@ -1,3 +1,5 @@
+import { isLoopbackHost } from "../oauth/policy.js";
+
 export type McpToolCategoryId = "fichiers" | "docker" | "gpu";
 
 export interface McpToolInfo {
@@ -160,63 +162,75 @@ export const MCP_CATEGORIES: McpToolCategory[] = [
   },
 ];
 
-export function mcpUrlForHost(hostname: string, port: number, endpoint: string): string {
+export function mcpUrlForHost(hostname: string, port: number, endpoint: string): string | null {
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const publicBase = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
   if (publicBase) return `${publicBase}${path}`;
+  if (isLoopbackHost(hostname)) return null;
   // Port 80/443 → pas de :port dans l'URL publique
   if (port === 80) return `http://${hostname}${path}`;
   if (port === 443) return `https://${hostname}${path}`;
   return `http://${hostname}:${port}${path}`;
 }
 
-/** URL MCP publique : Origin du navigateur (derriere proxy web) ou PUBLIC_BASE_URL. */
+function usableOrigin(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (isLoopbackHost(url.hostname)) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** URL MCP publique : PUBLIC_BASE_URL, sinon l'hôte vu par le proxy (jamais 127.0.0.1). */
 export function mcpPublicUrl(
   c: { req: { header: (name: string) => string | undefined } },
   endpoint: string,
   fallbackHostname: string,
   fallbackPort: number,
-): string {
+): string | null {
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const publicBase = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
   if (publicBase) return `${publicBase}${path}`;
 
-  const origin = c.req.header("origin") || "";
-  if (origin) {
-    try {
-      return `${new URL(origin).origin}${path}`;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const referer = c.req.header("referer") || "";
-  if (referer) {
-    try {
-      return `${new URL(referer).origin}${path}`;
-    } catch {
-      /* ignore */
-    }
-  }
+  const fromOrigin = usableOrigin(c.req.header("origin") || "");
+  if (fromOrigin) return `${fromOrigin}${path}`;
+  const fromReferer = usableOrigin(c.req.header("referer") || "");
+  if (fromReferer) return `${fromReferer}${path}`;
 
   const xfProto = (c.req.header("x-forwarded-proto") || "http").split(",")[0].trim();
-  const xfHost = (c.req.header("x-forwarded-host") || c.req.header("host") || "").split(",")[0].trim();
-  if (xfHost) return `${xfProto}://${xfHost}${path}`;
+  const xfHost = (c.req.header("x-forwarded-host") || "").split(",")[0].trim();
+  if (xfHost && !isLoopbackHost(xfHost)) return `${xfProto}://${xfHost}${path}`;
+
+  const host = (c.req.header("host") || "").split(",")[0].trim();
+  if (host && !isLoopbackHost(host)) {
+    const proto = (c.req.header("x-forwarded-proto") || "http").split(",")[0].trim();
+    return `${proto}://${host}${path}`;
+  }
 
   return mcpUrlForHost(fallbackHostname, fallbackPort, endpoint);
 }
 
-export async function probeMcpHttp(port: number, endpoint: string): Promise<{ reachable: boolean; status?: number; error?: string }> {
+export async function probeMcpHttp(
+  port: number,
+  endpoint: string,
+): Promise<{ reachable: boolean; status?: number; error?: string; authRequired: boolean }> {
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `http://127.0.0.1:${port}${path}`;
   try {
     const res = await fetch(url, {
       method: "GET",
-      headers: { Accept: "text/event-stream, application/json, */*" },
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(2500),
     });
-    return { reachable: res.status < 500, status: res.status };
+    // 401 = OAuth exigé, 400 = ancienne réponse sans session : le serveur répond.
+    return {
+      reachable: res.status > 0 && res.status < 500,
+      status: res.status,
+      authRequired: res.status === 401,
+    };
   } catch (error: any) {
-    return { reachable: false, error: error?.message || String(error) };
+    return { reachable: false, authRequired: false, error: error?.message || String(error) };
   }
 }
