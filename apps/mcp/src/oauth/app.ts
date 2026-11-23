@@ -13,6 +13,7 @@ import {
   validChallenge,
 } from "./policy.js";
 import { OauthStore, resolveOauthFile, type ClientRecord } from "./store.js";
+import { bindOauthAccessLookup } from "./accessLookup.js";
 
 const MAX_MCP_BODY = 8 * 1024 * 1024;
 const HOP = new Set(["connection", "keep-alive", "transfer-encoding", "content-encoding", "content-length"]);
@@ -560,6 +561,7 @@ export function startConnector(opts: {
 }): { app: Hono; store: OauthStore; config: ConnectorConfig } {
   const config = opts.config || configFromEnv(opts.upstreamBase, opts.endpoint);
   const store = opts.store || OauthStore.load(resolveOauthFile());
+  bindOauthAccessLookup((token) => store.accessGrant(token) !== null);
   const app = createConnectorApp(store, config);
   serve({ fetch: app.fetch, port: opts.port, hostname: opts.host }, (info) => {
     console.log(`[zimatools] connecteur OAuth + MCP : http://${info.address}:${info.port}${config.endpoint}`);

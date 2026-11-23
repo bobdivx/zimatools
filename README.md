@@ -229,7 +229,17 @@ Les jetons OAuth ne sont stockés qu'en empreinte SHA-256 (`oauth.json` dans `ZI
 Liste et révocation : `https://<hôte>/oauth/apps`.
 
 `ZIMATOOLS_MCP_TOKEN`, s'il est défini, est un Bearer de secours pour l'automatisation existante
-(Cursor, scripts). Il ne passe pas par le consentement et ne tourne pas.
+(Cursor, scripts) et pour l'API du tableau de bord. Il ne passe pas par le consentement et ne tourne pas.
+
+Le même mot de passe admin ouvre le tableau de bord. `GET/POST /api/session` pose un cookie `HttpOnly`
+(`SameSite=Lax`, 1 h). La déconnexion incrémente un compteur en mémoire et invalide les cookies déjà émis.
+Docker, apps, GPU et watchdog (`/api/docker`, `/api/apps`, `/api/gpu`, y compris le secret webhook renvoyé
+par le statut) répondent **401** sans ce cookie, sans `ZIMATOOLS_MCP_TOKEN`, ou sans jeton d'accès OAuth.
+Le mot de passe n'est pas accepté comme Bearer.
+
+Pas d'exception « réseau local ». Le conteneur web et l'API partagent `127.0.0.1` (`network_mode: service:mcp`),
+et `X-Forwarded-For` derrière cloudflared est falsifiable. `/health`, `GET /api/mcp` et `POST /api/apps/webhook`
+(secret `IMAGE_WEBHOOK_SECRET` uniquement) restent hors de cette session.
 
 ```json
 {
@@ -291,7 +301,12 @@ Then reload MCP / restart Cursor. Tools `gpu.*` and ZimaOS file/Docker tools sho
 
 Via the public proxy: `http://<nas>:8484/...`
 
+`/health` et `GET /api/mcp` sont publics. Les routes Docker, apps et GPU exigent le cookie admin
+(`POST /api/session`) ou un Bearer (`ZIMATOOLS_MCP_TOKEN` ou jeton d'accès OAuth). Le webhook garde
+son secret dédié.
+
 - `GET /health`
+- `POST /api/session` `{ "password": "<ZIMATOOLS_ADMIN_PASSWORD>" }`
 - `GET /api/gpu/status`
 - `POST /api/gpu/acquire` `{ "client": "popcorn" }`
 - `POST /api/gpu/release` `{ "client": "popcorn" }`
@@ -352,8 +367,8 @@ See `.env.example`.
 | `MCP_UPSTREAM` | `http://mcp:8765` | Web → MCP proxy target |
 | `PUBLIC_API_URL` | _(empty)_ | Browser API base; empty = same-origin |
 | `PUBLIC_BASE_URL` | _(empty)_ | Issuer OAuth et URL publique (`https://zimatools.jeser.app`). Obligatoire derrière un proxy. |
-| `ZIMATOOLS_ADMIN_PASSWORD` | _(empty)_ | Mot de passe de la page de consentement OAuth. Sans lui, aucun connecteur ne peut être autorisé. |
-| `ZIMATOOLS_MCP_TOKEN` | _(empty)_ | Bearer statique optionnel (automatisation). Ne remplace pas le consentement. |
+| `ZIMATOOLS_ADMIN_PASSWORD` | _(empty)_ | Mot de passe du consentement OAuth et de la session du tableau de bord. Sans lui, aucun connecteur ni le dashboard NAS. |
+| `ZIMATOOLS_MCP_TOKEN` | _(empty)_ | Bearer statique optionnel (automatisation et `/api/*`). Ne remplace pas le consentement. |
 | `MCP_INTERNAL_PORT` | `8767` | MCP mcp-framework, loopback seulement. Le port public est le connecteur. |
 | `ZIMAOS_API_BASE` / `TOKEN` | — | File tools |
 | `ZIMAOS_SSH_*` | — | Docker tools over SSH |

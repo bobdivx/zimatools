@@ -8,6 +8,7 @@ export default function DockerList() {
   useEffect(() => {
     fetch(`${apiBase()}/api/docker/containers`)
       .then((r) => {
+        if (r.status === 401) throw new Error("session admin requise");
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         return r.json();
       })

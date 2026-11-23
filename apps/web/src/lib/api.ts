@@ -10,6 +10,7 @@ export async function jsonFetch(path: string, init?: RequestInit) {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
   });
+  if (res.status === 401) throw new Error("session admin requise");
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }

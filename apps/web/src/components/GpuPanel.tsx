@@ -20,6 +20,7 @@ export default function GpuPanel() {
   const [prio, setPrio] = useState(100);
   const [message, setMessage] = useState<string | null>(null);
   const [queueHint, setQueueHint] = useState<string | null>(null);
+  const [stream, setStream] = useState(false);
 
   async function refresh() {
     try {
@@ -30,6 +31,7 @@ export default function GpuPanel() {
       ]);
       setData(status);
       setApps(listed.apps || []);
+      setStream(true);
       const gpu = status?.gpus?.[0];
       if (gpu) {
         const point: GpuSample = {
@@ -54,6 +56,7 @@ export default function GpuPanel() {
   }, []);
 
   useEffect(() => {
+    if (!stream) return;
     const es = new EventSource(`${apiBase()}/api/gpu/events`);
     const onQueued = (ev: MessageEvent) => {
       try {
@@ -83,7 +86,7 @@ export default function GpuPanel() {
     es.addEventListener("preempted", onRefresh);
     es.addEventListener("position", onQueued);
     return () => es.close();
-  }, []);
+  }, [stream]);
 
   async function acquireApp(app: AppInfo) {
     setBusy(true);

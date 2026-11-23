@@ -12,6 +12,19 @@ import {
   mcpPublicUrl,
   probeMcpHttp,
 } from "./lib/mcpCatalog.js";
+import {
+  adminCookieValid,
+  adminPasswordMatches,
+  apiRouteIsPublic,
+  clearedSessionCookie,
+  cookieSecure,
+  dashboardAuthorized,
+  loginLimited,
+  noteLoginFailure,
+  passwordConfigured,
+  sessionCookie,
+} from "./lib/dashboardAuth.js";
+import { bumpAdminEpoch } from "./oauth/crypto.js";
 
 function requestHostname(c: { req: { header: (name: string) => string | undefined } }): string {
   const origin = c.req.header("origin") || c.req.header("referer") || "";
@@ -131,7 +144,7 @@ function sseVisible(filter: string | undefined, event: GpuEventName, payload: Gp
   return false;
 }
 
-export function startHttpApi(port: number) {
+export function createHttpApp() {
   const app = new Hono();
   const origin = process.env.API_CORS_ORIGIN || "*";
 
@@ -139,12 +152,52 @@ export function startHttpApi(port: number) {
     "*",
     cors({
       origin,
-      allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization", "X-Webhook-Secret"],
     }),
   );
 
+  app.use("/api/*", async (c, next) => {
+    if (apiRouteIsPublic(c.req.method, c.req.path)) return next();
+    if (dashboardAuthorized(c.req.header("authorization"), c.req.header("cookie"))) return next();
+    c.header("WWW-Authenticate", 'Bearer realm="zimatools"');
+    c.header("cache-control", "no-store");
+    return c.json(
+      { error: "unauthorized", error_description: "Session admin ou jeton requis." },
+      401,
+    );
+  });
+
   app.get("/health", (c) => c.json(healthPayload()));
+
+  app.get("/api/session", (c) => {
+    c.header("cache-control", "no-store");
+    return c.json({
+      authenticated: adminCookieValid(c.req.header("cookie")),
+      passwordConfigured: passwordConfigured(),
+    });
+  });
+
+  app.post("/api/session", async (c) => {
+    c.header("cache-control", "no-store");
+    if (loginLimited()) return c.json({ error: "too_many_attempts" }, 429);
+    if (!passwordConfigured()) return c.json({ error: "password_not_configured" }, 503);
+    const body = (await c.req.json().catch(() => ({}))) as { password?: string };
+    if (!adminPasswordMatches(String(body.password || ""))) {
+      noteLoginFailure();
+      return c.json({ error: "invalid_password" }, 401);
+    }
+    const cookie = sessionCookie(Date.now(), cookieSecure(c.req.header("x-forwarded-proto")));
+    if (cookie) c.header("set-cookie", cookie);
+    return c.json({ ok: true });
+  });
+
+  app.post("/api/session/logout", (c) => {
+    c.header("cache-control", "no-store");
+    if (adminCookieValid(c.req.header("cookie"))) bumpAdminEpoch();
+    c.header("set-cookie", clearedSessionCookie(cookieSecure(c.req.header("x-forwarded-proto"))));
+    return c.json({ ok: true });
+  });
 
   app.get("/api/mcp", async (c) => c.json(await mcpStatusPayload(c)));
   app.get("/api/mcp/tools", async (c) => c.json(await mcpStatusPayload(c)));
@@ -380,9 +433,13 @@ export function startHttpApi(port: number) {
 
   void imageWatchdog.status();
 
+  return app;
+}
+
+export function startHttpApi(port: number) {
+  const app = createHttpApp();
   serve({ fetch: app.fetch, port, hostname: process.env.API_HOST || "0.0.0.0" }, (info) => {
     console.log(`[zimatools] REST API listening on http://${info.address}:${info.port}`);
   });
-
   return app;
 }

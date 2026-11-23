@@ -39,8 +39,15 @@ export function ctEq(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+/** Incrémenté à la déconnexion : invalide tous les cookies admin du processus. */
+let adminEpoch = 1;
+
+export function bumpAdminEpoch(): void {
+  adminEpoch += 1;
+}
+
 export function signAdminCookie(password: string, expMs: number): string {
-  const msg = `v1.${expMs}`;
+  const msg = `v2.${expMs}.${adminEpoch}`;
   const sig = crypto.createHmac("sha256", password).update(msg).digest("base64url");
   return `${msg}.${sig}`;
 }
@@ -48,12 +55,14 @@ export function signAdminCookie(password: string, expMs: number): string {
 export function verifyAdminCookie(password: string | null, cookie: string | null, now: number): boolean {
   if (!password || !cookie) return false;
   const parts = cookie.split(".");
-  if (parts.length !== 3) return false;
-  const [ver, expStr, sig] = parts;
-  if (ver !== "v1") return false;
+  if (parts.length !== 4) return false;
+  const [ver, expStr, epochStr, sig] = parts;
+  if (ver !== "v2") return false;
   const exp = Number(expStr);
+  const epoch = Number(epochStr);
   if (!Number.isFinite(exp) || exp <= now) return false;
-  const expected = crypto.createHmac("sha256", password).update(`${ver}.${expStr}`).digest("base64url");
+  if (!Number.isInteger(epoch) || epoch !== adminEpoch) return false;
+  const expected = crypto.createHmac("sha256", password).update(`${ver}.${expStr}.${epochStr}`).digest("base64url");
   return ctEq(expected, sig);
 }
 

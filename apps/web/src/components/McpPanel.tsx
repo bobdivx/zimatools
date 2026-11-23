@@ -149,7 +149,8 @@ export default function McpPanel() {
         <p class="text-sm opacity-70 mt-2">
           Grok Bot et l'application Grok ajoutent ce serveur avec l'URL seule. Le client s'enregistre
           tout seul (ou utilise le client <span class="font-mono text-xs">https://grok.com</span>).
-          Le consentement demande le mot de passe admin du NAS, pas un compte ZimaOS.
+          Le consentement demande le mot de passe admin du NAS, pas un compte ZimaOS. Le même mot de
+          passe ouvre le tableau de bord (Docker, apps, GPU).
         </p>
         {!adminConfigured && data && (
           <div class="alert alert-warning mt-3">
