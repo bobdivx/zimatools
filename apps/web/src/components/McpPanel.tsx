@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { jsonFetch, publicHost } from "../lib/api";
+import { jsonFetch } from "../lib/api";
 import { ArcElement, Chart, DoughnutController, Tooltip } from "chart.js";
 
 Chart.register(DoughnutController, ArcElement, Tooltip);
 
-function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
+function HealthDonut({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const waiting = detail === "vérification";
+  const color = waiting ? "#9aa3b2" : ok ? "#22c55e" : "#ef4444";
   useEffect(() => {
     if (!ref.current) return;
     const chart = new Chart(ref.current, {
       type: "doughnut",
       data: {
-        labels: [ok ? "up" : "down"],
+        labels: [waiting ? "wait" : ok ? "up" : "down"],
         datasets: [
           {
-            data: [ok ? 1 : 0.0001, ok ? 0.0001 : 1],
-            backgroundColor: [ok ? "#22c55e" : "#ef4444", "rgba(255,255,255,0.06)"],
+            data: [waiting || ok ? 1 : 0.0001, waiting || ok ? 0.0001 : 1],
+            backgroundColor: [color, "rgba(255,255,255,0.06)"],
             borderWidth: 0,
           },
         ],
@@ -30,7 +32,7 @@ function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
       },
     });
     return () => chart.destroy();
-  }, [ok]);
+  }, [ok, detail, color]);
   return (
     <div class="flex flex-wrap items-center gap-3 min-w-0">
       <div class="relative w-14 h-14 chart-box">
@@ -38,7 +40,7 @@ function HealthDonut({ ok, label }: { ok: boolean; label: string }) {
       </div>
       <div class="min-w-0">
         <div class="text-sm font-semibold">{label}</div>
-        <div class={`text-xs ${ok ? "text-success" : "text-error"}`}>{ok ? "up" : "down"}</div>
+        <div class={`text-xs ${ok ? "text-success" : detail === "vérification" ? "opacity-60" : "text-error"}`}>{detail}</div>
       </div>
     </div>
   );
@@ -81,10 +83,10 @@ export default function McpPanel() {
     return () => clearInterval(id);
   }, []);
 
-  const host = publicHost();
-  const mcpUrl =
-    data?.mcp?.url?.replace("127.0.0.1", host) ||
-    (typeof window !== "undefined" ? `${window.location.origin}/mcp` : `http://${host}/mcp`);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const apiUrl = typeof data?.mcp?.url === "string" ? data.mcp.url : "";
+  const apiIsInternal = !apiUrl || /:\/\/(127\.0\.0\.1|localhost|0\.0\.0\.0)(?::|\/|$)/.test(apiUrl);
+  const mcpUrl = !apiIsInternal ? apiUrl : origin ? `${origin}/mcp` : "";
   const httpConfig = JSON.stringify(
     { mcpServers: { zimatools: { url: mcpUrl } } },
     null,
@@ -97,7 +99,7 @@ export default function McpPanel() {
           command: "node",
           args: ["<path>/apps/mcp/dist/index.js", "--stdio"],
           env: {
-            ZIMAOS_API_BASE: `http://${host}`,
+            ZIMAOS_API_BASE: origin || "http://<nas>",
             ZIMAOS_API_TOKEN: "...",
           },
         },
@@ -108,8 +110,12 @@ export default function McpPanel() {
   );
 
   const restOk = data?.rest?.reachable !== false && !!data?.ok && !error;
-  const mcpOk = Boolean(data?.mcp?.reachable);
+  const pending = !data && !error;
+  const authRequired = Boolean(data?.mcp?.authRequired) || data?.mcp?.status === 401;
+  const mcpOk = Boolean(data?.mcp?.reachable) || authRequired;
+  const mcpDetail = pending ? "vérification" : authRequired ? "protégé" : mcpOk ? "up" : "down";
   const categories = data?.categories || [];
+  const adminConfigured = data?.oauth?.adminConfigured !== false;
 
   return (
     <div class="space-y-6">
@@ -127,18 +133,46 @@ export default function McpPanel() {
           <CopyButton text={mcpUrl} label="Copier l'URL MCP" />
         </div>
         <div class="mt-5 grid gap-4 min-w-0 md:grid-cols-2">
-          <HealthDonut ok={restOk} label="REST /health" />
-          <HealthDonut ok={mcpOk} label="HTTP stream /mcp" />
+          <HealthDonut ok={restOk} label="REST /health" detail={pending ? "vérification" : restOk ? "up" : "down"} />
+          <HealthDonut ok={mcpOk} label="HTTP stream /mcp" detail={mcpDetail} />
         </div>
-        <p class="mt-4 font-mono text-sm text-secondary break-all">{mcpUrl}</p>
+        <p class="mt-4 font-mono text-sm text-secondary break-all">{mcpUrl || "…"}</p>
         <p class="text-xs opacity-50 mt-2">
-          Navigateur = cette page d'aide. Clients MCP (Cursor, agents) = meme URL, protocole Streamable HTTP.
+          Navigateur = cette page d'aide. Clients MCP = même URL, OAuth 2.1. Un GET sans session répond 401 :
+          c'est le serveur qui exige un jeton, pas une panne.
         </p>
       </div>
 
       <div class="zima-card">
+        <div class="zima-kicker">Grok</div>
+        <h2 class="text-xl font-semibold mt-1">Connecteur OAuth</h2>
+        <p class="text-sm opacity-70 mt-2">
+          Grok Bot et l'application Grok ajoutent ce serveur avec l'URL seule. Le client s'enregistre
+          tout seul (ou utilise le client <span class="font-mono text-xs">https://grok.com</span>).
+          Le consentement demande le mot de passe admin du NAS, pas un compte ZimaOS. Le même mot de
+          passe ouvre le tableau de bord (Docker, apps, GPU).
+        </p>
+        {!adminConfigured && data && (
+          <div class="alert alert-warning mt-3">
+            ZIMATOOLS_ADMIN_PASSWORD n'est pas défini : personne ne peut autoriser une application.
+          </div>
+        )}
+        <ol class="mt-4 space-y-3 text-sm opacity-90 list-decimal list-inside">
+          <li>Dans Grok : Connecteurs, nouveau connecteur personnalisé.</li>
+          <li>
+            Colle l'URL <span class="font-mono text-xs break-all">{mcpUrl || "/mcp"}</span>. Laisse Client ID et
+            secret vides (l'app mobile envoie <span class="font-mono text-xs">https://grok.com</span>).
+          </li>
+          <li>Sur la page de consentement, saisis le mot de passe admin et autorise.</li>
+          <li>
+            Révocation : <a class="link" href="/oauth/apps">applications connectées</a>.
+          </li>
+        </ol>
+      </div>
+
+      <div class="zima-card">
         <div class="zima-kicker">Configuration</div>
-        <h2 class="text-xl font-semibold mt-1">Cursor / DevForge / agents</h2>
+        <h2 class="text-xl font-semibold mt-1">Cursor / automatisation</h2>
         <ol class="mt-4 space-y-3 text-sm opacity-90 list-decimal list-inside">
           <li>
             Ouvre les reglages MCP de ton client (Cursor : <span class="font-mono text-xs">mcp.json</span>).
@@ -157,7 +191,7 @@ export default function McpPanel() {
         <p class="text-xs opacity-50 mt-3">
           Health check REST (optionnel) :{" "}
           <span class="font-mono text-secondary">
-            {typeof window !== "undefined" ? `${window.location.origin}/health` : `http://${host}/health`}
+            {origin ? `${origin}/health` : "…"}
           </span>
         </p>
       </div>

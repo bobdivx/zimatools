@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Nav from "../components/Nav";
+import AdminGate from "../components/AdminGate";
 
 interface Props {
   title?: string;
@@ -31,6 +32,7 @@ const { title = "ZimaTools" } = Astro.props;
       </div>
       <Nav pathname={Astro.url.pathname} />
       <main class="zima-main">
+        <AdminGate client:load />
         <slot />
       </main>
     </div>

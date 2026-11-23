@@ -2,6 +2,7 @@ import { MCPServer } from "mcp-framework";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { startHttpApi } from "./httpApi.js";
+import { startConnector } from "./oauth/app.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,6 +25,12 @@ const transportMode = (
 const mcpPort = Number(process.env.MCP_PORT || 8765);
 const mcpHost = process.env.MCP_HOST || "0.0.0.0";
 const mcpEndpoint = process.env.MCP_ENDPOINT || "/mcp";
+const internalPort = Number(process.env.MCP_INTERNAL_PORT || 8767);
+
+if (transportMode !== "stdio" && internalPort === mcpPort) {
+  console.error("[zimatools] MCP_INTERNAL_PORT doit être différent de MCP_PORT.");
+  process.exit(1);
+}
 
 const transport =
   transportMode === "stdio"
@@ -31,8 +38,8 @@ const transport =
     : {
         type: "http-stream" as const,
         options: {
-          port: mcpPort,
-          host: mcpHost,
+          port: internalPort,
+          host: "127.0.0.1",
           endpoint: mcpEndpoint,
           responseMode: (process.env.MCP_RESPONSE_MODE as "batch" | "stream") || "stream",
           cors: {
@@ -53,10 +60,16 @@ const apiPort = Number(process.env.API_PORT || 8766);
 async function main() {
   if (transportMode !== "stdio") {
     startHttpApi(apiPort);
-    console.log(`[zimatools] MCP HTTP stream: http://${mcpHost}:${mcpPort}${mcpEndpoint}`);
-    console.log(`[zimatools] REST API:        http://0.0.0.0:${apiPort}/api`);
+    startConnector({
+      port: mcpPort,
+      host: mcpHost,
+      upstreamBase: `http://127.0.0.1:${internalPort}`,
+      endpoint: mcpEndpoint,
+    });
+    console.log(`[zimatools] MCP interne (loopback) : http://127.0.0.1:${internalPort}${mcpEndpoint}`);
+    console.log(`[zimatools] REST API : http://0.0.0.0:${apiPort}/api`);
   } else {
-    console.error("[zimatools] MCP stdio pret (Cursor local).");
+    console.error("[zimatools] MCP stdio pret (Cursor local, sans OAuth).");
   }
   await server.start();
 }

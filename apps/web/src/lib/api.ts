@@ -5,16 +5,12 @@ export function apiBase() {
   return "";
 }
 
-export function publicHost() {
-  if (typeof window === "undefined") return "127.0.0.1";
-  return window.location.hostname;
-}
-
 export async function jsonFetch(path: string, init?: RequestInit) {
   const res = await fetch(`${apiBase()}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
   });
+  if (res.status === 401) throw new Error("session admin requise");
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
